@@ -10,14 +10,12 @@ Implemented by Daan Dieperink
 
 TODO:
     Model:
-        midi file generation and playback
         checkpoints, tensorboard
         Custom training loop and callbacks
         Add validation data to model.fit
     Input loader:
-        Dataset shuffling (or randomization at least)
-        Data augmentation
-        Save preprocessed dataset to disk
+        Better dataset shuffling
+            (windows of one track get grouped together)
 
     Train!
 
@@ -26,18 +24,13 @@ Future improvements:
     Optimization/profiling
     Playback to alsa sequencer
 """
-import os.path
-
 from input_loader import PerformanceInputLoader
 from input_loader import sequence_to_midi
 
+import os
 import sys
-import time
-import pdb
 
 import tensorflow as tf
-import numpy as np
-
 
 
 class PerformanceRNNModel(tf.keras.Model):
@@ -82,14 +75,18 @@ class PerformanceRNNModel(tf.keras.Model):
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         # Model returns probability logits, dataset returns category indices
         self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
-        self.compile(optimizer=self.optimizer, loss=self.loss)
+        self.compile(optimizer=self.optimizer, loss=self.loss,
+                     metrics=['sparse_categorical_accuracy'])
 
         # Setup callbacks for during training
         self.callbacks = [
                 TrainCallback(),
                 tf.keras.callbacks.TensorBoard(
-                    profile_batch=(5, 20),
-                    update_freq=5)]
+                    write_graph=False,
+                    write_images=True,
+                    histogram_freq=1,
+                    write_steps_per_second=True,
+                    update_freq=25)]
 
         # Setup checkpoints 
         self.chkpt = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
@@ -104,10 +101,8 @@ class PerformanceRNNModel(tf.keras.Model):
             self.chkpt.restore(self.chkpt_mgr.latest_checkpoint)
             print(f'Restored checkpoint (batch {self.batch_ctr.value()})')
 
-
     def call(self, inputs, training=False, states=None, return_states=False):
         """
-        TODO handle cell state as well as activation state for sampling
         """
         x = tf.one_hot(inputs, self.vocab_size)
         if states is None:
@@ -125,8 +120,9 @@ class PerformanceRNNModel(tf.keras.Model):
         return x
 
     def train(self, epochs):
-        return self.fit(self.input_loader.dataset, epochs=epochs, callbacks=self.callbacks)
-
+        return self.fit(self.input_loader.dataset, epochs=epochs,
+                        callbacks=self.callbacks,
+                        validation_data=None)
 
     @tf.function
     def generate_step(self, inputs, states):
@@ -151,7 +147,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
     def on_batch_end(self, batch, logs=None):
         self.model.batch_ctr.assign_add(1)
         b = self.model.batch_ctr.value()
-        if batch % 50 == 0:
+        if b % 50 == 0:
             # Generate sample
             music = self.model.sample_music()
             midi = sequence_to_midi(music)
