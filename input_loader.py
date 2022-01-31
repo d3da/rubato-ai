@@ -133,7 +133,7 @@ class PerformanceInputLoader:
             min_stride,
             max_stride):
 
-        Q_SIZE = 512
+        Q_SIZE = 64
         NUM_THREADS = 7
 
         buffer = multiprocessing.Queue(Q_SIZE)
@@ -155,8 +155,8 @@ class PerformanceInputLoader:
                     yield win
 
             except queue.Empty:
-                # Check if every thread is done
-                # (threads might still produce something during the check)
+                # Check if every child is done
+                # (children might still produce something during the check)
                 print('Sequence buffer empty')
 
                 done = True
