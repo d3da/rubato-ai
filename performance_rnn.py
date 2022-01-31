@@ -171,8 +171,8 @@ class TrainCallback(tf.keras.callbacks.Callback):
     def __init__(self,
                  base_log_dir='logs',
                  update_freq=25,
-                 save_midi_freq=25,
-                 save_checkpoint_freq=25,
+                 save_midi_freq=50,
+                 save_checkpoint_freq=100,
                  write_steps_per_second=True):
         # TODO global epoch as well?
         # TODO midi output dir
@@ -193,14 +193,11 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.writer.close()
 
     def on_batch_begin(self, batch, logs=None):
-        self.model.batch_ctr.assign_add(1)
         if self.write_steps_per_second:
             self._batch_start_time = time.time()
 
     def on_batch_end(self, batch, logs=None):
         step = self.model.batch_ctr.value()
-        print(step)
-
         if step % self.update_freq == 0:
             with self.writer.as_default():
                 if self.write_steps_per_second:
@@ -214,10 +211,15 @@ class TrainCallback(tf.keras.callbacks.Callback):
             music = self.model.sample_music()
             midi = sequence_to_midi(music)
             midi.save(f'./results/out-b{step}.midi')
-            print(f'Saved midi (batch {step})')
+            # print(f'Saved midi (batch {step})')
 
         if step % self.save_checkpoint_freq == 0:
             self.model.chkpt_mgr.save()
+
+        self.model.batch_ctr.assign_add(1)
+
+    def on_epoch_end(self, epoch, logs=None):
+        print(f'\nTotal steps: {self.model.batch_ctr.value().numpy()}\n')
 
 
 if __name__ == '__main__':
