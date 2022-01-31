@@ -36,9 +36,6 @@ def get_midi_filenames(csv_path: str) -> Tuple[List[str], List[str], List[str]]:
             elif split == 'validation':
                 validation_set.append(filename)
 
-    random.shuffle(train_set)
-    random.shuffle(test_set)
-    random.shuffle(validation_set)
     return train_set, test_set, validation_set
 
 
@@ -107,7 +104,7 @@ class PerformanceInputLoader:
                 output_signature=(
                     tf.TensorSpec(shape=(window_size), dtype=tf.int32)
                 )).prefetch(tf.data.AUTOTUNE)\
-                  .batch(batch_size)\
+                  .batch(batch_size, drop_remainder=True)\
                   .map(PerformanceInputLoader.split_x_y)\
                   .prefetch(tf.data.AUTOTUNE)
 
@@ -120,7 +117,7 @@ class PerformanceInputLoader:
             self.buffer = buffer
 
         def run(self):
-            for path in self.path_list[:]:
+            for path in self.path_list:
                 seq = file_to_seq(path, self.base_data_path, self.augmentation)
                 self.buffer.put(seq)
 
@@ -135,6 +132,8 @@ class PerformanceInputLoader:
 
         Q_SIZE = 64
         NUM_THREADS = 7
+
+        random.shuffle(path_list)
 
         buffer = multiprocessing.Queue(Q_SIZE)
         paths_subset = np.array_split(path_list, NUM_THREADS)
@@ -157,8 +156,6 @@ class PerformanceInputLoader:
             except queue.Empty:
                 # Check if every child is done
                 # (children might still produce something during the check)
-                print('Sequence buffer empty')
-
                 done = True
                 for slave in slaves:
                     if slave.is_alive():
