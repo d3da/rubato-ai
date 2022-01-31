@@ -17,6 +17,9 @@ TODO:
         Better dataset shuffling
             (windows of one track get grouped together)
 
+    Misc:
+        Remove relative paths, make all relative to __dir__
+
     Train!
 
 Future improvements:
@@ -77,22 +80,26 @@ class PerformanceRNNModel(tf.keras.Model):
         # Model returns probability logits, dataset returns category indices
         self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
         self.compile(optimizer=self.optimizer, loss=self.loss,
-                     metrics=['sparse_categorical_accuracy'])
+                     metrics=['accuracy'])
 
         # Setup callbacks for during training
-        self.callbacks = [
-                TrainCallback(),
-                tf.keras.callbacks.TensorBoard(
-                    log_dir='logs/'+time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime()),
-                    write_graph=False,
-                    write_images=True,
-                    histogram_freq=1,
-                    write_steps_per_second=True,
-                    update_freq=25)]
 
-        # Setup checkpoints 
+                # TODO custom version of the tensorboard callback
+                # for persistent global batch/epoch counters, audio/text logging etc
+                # https://github.com/keras-team/keras/blob/v2.7.0/keras/callbacks.py#L2227-L2245
+                #tf.keras.callbacks.TensorBoard(
+                #    log_dir='logs/'+time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime()),
+                #    write_graph=False,
+                #    write_images=True,
+                #    histogram_freq=1,
+                #    write_steps_per_second=True,
+                #    update_freq=25)]
+
+        # Setup checkpoints
+
+        # TODO some of these variables don't have to be class attributes
         self.chkpt = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
-        self.batch_ctr = tf.Variable(1, trainable=False)
+        self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.chkpt_mgr = tf.train.CheckpointManager(
                 self.chkpt,
                 directory=checkpoint_dir,
@@ -103,8 +110,11 @@ class PerformanceRNNModel(tf.keras.Model):
             self.chkpt.restore(self.chkpt_mgr.latest_checkpoint)
             print(f'Restored checkpoint (batch {self.batch_ctr.value()})')
 
+        self.callbacks = [TrainCallback()]
+
     def call(self, inputs, training=False, states=None, return_states=False):
         """
+        TODO cleanup this mess
         """
         x = tf.one_hot(inputs, self.vocab_size)
         if states is None:
@@ -122,6 +132,7 @@ class PerformanceRNNModel(tf.keras.Model):
         return x
 
     def train(self, epochs):
+        # TODO validation metrics
         return self.fit(self.input_loader.dataset, epochs=epochs,
                         callbacks=self.callbacks,
                         validation_data=None)
@@ -133,6 +144,7 @@ class PerformanceRNNModel(tf.keras.Model):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1)
         return predicted_categories, states
 
+    # TODO sampling temperature / beam search etc
     def sample_music(self, start_event_category=0, sample_length=512):
         states = None
         next_category = tf.constant([start_event_category], shape=(1, 1))
@@ -146,16 +158,65 @@ class PerformanceRNNModel(tf.keras.Model):
 
 
 class TrainCallback(tf.keras.callbacks.Callback):
-    def on_batch_end(self, batch, logs=None):
+    """
+    Custom callback that provides "improvements" over the default
+        tf.keras.callbacks.TensorBoard in addition to handling
+        checkpoint saving and sample generation.
+
+    This callback keeps track of a global step (batch) counter
+        that persists between checkpoint saves/loads, allowing
+        tensorboard graphs to span multiple runs.
+
+    """
+    def __init__(self,
+                 base_log_dir='logs',
+                 update_freq=25,
+                 save_midi_freq=25,
+                 save_checkpoint_freq=25,
+                 write_steps_per_second=True):
+        # TODO global epoch as well?
+        # TODO midi output dir
+        # TODO output tf.summary.audio
+
+        project_dir = os.path.dirname(__file__)
+        run_time = time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime())
+        self.log_dir = str(os.path.join(project_dir, base_log_dir, run_time))
+        self.update_freq = update_freq
+        self.save_midi_freq = save_midi_freq
+        self.save_checkpoint_freq = save_checkpoint_freq
+        self.write_steps_per_second = write_steps_per_second
+
+        self._batch_start_time = 0.
+        self.writer = tf.summary.create_file_writer(self.log_dir)
+
+    def on_train_end(self, logs=None):
+        self.writer.close()
+
+    def on_batch_begin(self, batch, logs=None):
         self.model.batch_ctr.assign_add(1)
-        b = self.model.batch_ctr.value()
-        if b % 50 == 0:
+        if self.write_steps_per_second:
+            self._batch_start_time = time.time()
+
+    def on_batch_end(self, batch, logs=None):
+        step = self.model.batch_ctr.value()
+        print(step)
+
+        if step % self.update_freq == 0:
+            with self.writer.as_default():
+                if self.write_steps_per_second:
+                    _batch_time = time.time() - self._batch_start_time
+                    tf.summary.scalar('batch_time', _batch_time, step=step)
+                for key, value in logs.items():
+                    tf.summary.scalar(key, value, step=step)
+
+        if step % self.save_midi_freq == 0:
             # Generate sample
             music = self.model.sample_music()
             midi = sequence_to_midi(music)
-            midi.save(f'./results/out-b{b}.midi')
-            print(f'\nSaved midi (batch {b})')
-            # Save ckpt
+            midi.save(f'./results/out-b{step}.midi')
+            print(f'Saved midi (batch {step})')
+
+        if step % self.save_checkpoint_freq == 0:
             self.model.chkpt_mgr.save()
 
 
@@ -174,9 +235,9 @@ if __name__ == '__main__':
         augmentation='aug+')
     model = PerformanceRNNModel(
         input_loader,
-        'performance_rnn-0.1',
+        'performance_rnn',
         './ckpt',
         restore_chkpt=True)
 
-    model.train(100)
+    model.train(500)
     sys.exit()
