@@ -29,6 +29,7 @@ from input_loader import sequence_to_midi
 
 import os
 import sys
+import time
 
 import tensorflow as tf
 
@@ -82,6 +83,7 @@ class PerformanceRNNModel(tf.keras.Model):
         self.callbacks = [
                 TrainCallback(),
                 tf.keras.callbacks.TensorBoard(
+                    log_dir='logs/'+time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime()),
                     write_graph=False,
                     write_images=True,
                     histogram_freq=1,
