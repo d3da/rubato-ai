@@ -99,14 +99,17 @@ class PerformanceInputLoader:
 
         self.vocab_size = Event.vocab_size
 
-        self.dataset = tf.data.Dataset.from_generator(PerformanceInputLoader.threaded_sequence_generator,
+        self.dataset = (
+            tf.data.Dataset.from_generator(
+                PerformanceInputLoader.threaded_sequence_generator,
                 args=(train, base_data_path, augmentation, window_size, min_stride, max_stride),
                 output_signature=(
-                    tf.TensorSpec(shape=(window_size), dtype=tf.int32)
-                )).prefetch(tf.data.AUTOTUNE)\
-                  .batch(batch_size, drop_remainder=True)\
-                  .map(PerformanceInputLoader.split_x_y)\
+                    tf.TensorSpec(shape=window_size, dtype=tf.int32)
+                )).shuffle(8092)  # (s+1)
                   .prefetch(tf.data.AUTOTUNE)
+                  .batch(batch_size, drop_remainder=True)  # (b, s+1)  TODO can we remove the drop
+                  .map(PerformanceInputLoader.split_x_y)  # (b, Tuple(s, s))
+                  .prefetch(tf.data.AUTOTUNE))
 
     class SequenceProducerThread(multiprocessing.Process):
         def __init__(self, path_list, base_data_path, augmentation, buffer):
@@ -130,6 +133,8 @@ class PerformanceInputLoader:
             min_stride,
             max_stride):
 
+        # TODO: allow configuring these performance-impacting hparams
+        # no effect on dataset output
         Q_SIZE = 64
         NUM_THREADS = 7
 
