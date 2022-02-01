@@ -74,8 +74,8 @@ class PerformanceRNNModel(tf.keras.Model):
                                           dropout=dropout)
         self.dense = tf.keras.layers.Dense(self.vocab_size)
 
-        # Adam optimizer
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        # Optimize using stochastic gradient descent
+        self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
         # Model returns probability logits, dataset returns category indices
         self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
         self.compile(optimizer=self.optimizer, loss=self.loss,
