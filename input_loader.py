@@ -160,6 +160,7 @@ class PerformanceInputLoader:
                 for slave in slaves:
                     if slave.is_alive():
                         done = False
+                        break
                 if done:
                     print('Exhausted workers')
                     break

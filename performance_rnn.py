@@ -10,9 +10,8 @@ Implemented by Daan Dieperink
 
 TODO:
     Model:
-        checkpoints, tensorboard
-        Custom training loop and callbacks
         Add validation data to model.fit
+        sampling temp / beamsearch etc
     Input loader:
         Better dataset shuffling
             (windows of one track get grouped together)
@@ -82,53 +81,38 @@ class PerformanceRNNModel(tf.keras.Model):
         self.compile(optimizer=self.optimizer, loss=self.loss,
                      metrics=['accuracy'])
 
-        # Setup callbacks for during training
-
-                # TODO custom version of the tensorboard callback
-                # for persistent global batch/epoch counters, audio/text logging etc
-                # https://github.com/keras-team/keras/blob/v2.7.0/keras/callbacks.py#L2227-L2245
-                #tf.keras.callbacks.TensorBoard(
-                #    log_dir='logs/'+time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime()),
-                #    write_graph=False,
-                #    write_images=True,
-                #    histogram_freq=1,
-                #    write_steps_per_second=True,
-                #    update_freq=25)]
-
         # Setup checkpoints
-
-        # TODO some of these variables don't have to be class attributes
-        self.chkpt = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
+        chkpt = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
         self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.chkpt_mgr = tf.train.CheckpointManager(
-                self.chkpt,
+                chkpt,
                 directory=checkpoint_dir,
                 max_to_keep=50,
                 step_counter=self.batch_ctr,
                 checkpoint_interval=5)
         if restore_chkpt:
-            self.chkpt.restore(self.chkpt_mgr.latest_checkpoint)
+            chkpt.restore(self.chkpt_mgr.latest_checkpoint)
             print(f'Restored checkpoint (batch {self.batch_ctr.value()})')
 
         self.callbacks = [TrainCallback()]
 
     def call(self, inputs, training=False, states=None, return_states=False):
         """
-        TODO cleanup this mess
+        Use builtin self.__call__() instead
         """
         x = tf.one_hot(inputs, self.vocab_size)
         if states is None:
-            state_1, cell_1 = self.lstm1.get_initial_state(x)
-            state_2, cell_2 = self.lstm2.get_initial_state(x)
-            state_3, cell_3 = self.lstm3.get_initial_state(x)
+            s_1, c_1 = self.lstm1.get_initial_state(x)
+            s_2, c_2 = self.lstm2.get_initial_state(x)
+            s_3, c_3 = self.lstm3.get_initial_state(x)
         else:
-            state_1, cell_1, state_2, cell_2, state_3, cell_3 = states
-        x, state_1, cell_1 = self.lstm1(x, training=training, initial_state=[state_1, cell_1])
-        x, state_2, cell_2 = self.lstm2(x, training=training, initial_state=[state_2, cell_2])
-        x, state_3, cell_3 = self.lstm3(x, training=training, initial_state=[state_3, cell_3])
+            s_1, c_1, s_2, c_2, s_3, c_3 = states
+        x, s_1, c_1 = self.lstm1(x, training=training, initial_state=[s_1, c_1])
+        x, s_2, c_2 = self.lstm2(x, training=training, initial_state=[s_2, c_2])
+        x, s_3, c_3 = self.lstm3(x, training=training, initial_state=[s_3, c_3])
         x = self.dense(x, training=training)
         if return_states:
-            return x, (state_1, cell_1, state_2, cell_2, state_3, cell_3)
+            return x, (s_1, c_1, s_2, c_2, s_3, c_3)
         return x
 
     def train(self, epochs):
