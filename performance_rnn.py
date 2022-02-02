@@ -122,11 +122,20 @@ class PerformanceRNNModel(tf.keras.Model):
             return x, (s_1, c_1, s_2, c_2, s_3, c_3)
         return x
 
-    def train(self, epochs):
-        # TODO validation metrics
-        return self.fit(self.input_loader.dataset, epochs=epochs,
-                        callbacks=self.callbacks,
-                        validation_data=self.input_loader.test_dataset)
+    def train(self, epochs: int) -> None:
+        """
+        Note:
+            Instead of simply calling self.fit() with epoch=epochs,
+              we call fit() once for each training epoch.
+            This is because the train dataset varies in length between epochs,
+              which fit() cannot handle normally.
+            The drawback is that we don't get an epoch ETA timer.
+        """
+        for e in range(epochs):
+            self.fit(self.input_loader.dataset, epochs=1,
+                     callbacks=self.callbacks,
+                     validation_data=self.input_loader.test_dataset)
+            print(f'Finished training epoch {e}/{epochs}.')
 
     @tf.function
     def generate_step(self, inputs, states, temperature):
