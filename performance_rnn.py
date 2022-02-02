@@ -136,7 +136,7 @@ class PerformanceRNNModel(tf.keras.Model):
             self.fit(self.input_loader.dataset, epochs=1,
                      callbacks=self.callbacks,
                      validation_data=self.input_loader.test_dataset)
-            print(f'Finished training epoch {e}/{epochs}.')
+            print(f'Finished training epoch {e+1}/{epochs}.')
 
     @tf.function
     def generate_step(self, inputs, states, temperature):
@@ -261,7 +261,8 @@ if __name__ == '__main__':
         min_stride=128,
         max_stride=256,
         batch_size=64,
-        augmentation='aug-')
+        augmentation='aug-'
+    )
 
     model = PerformanceRNNModel(
         input_loader=input_loader,
@@ -273,5 +274,5 @@ if __name__ == '__main__':
         dropout=0.0
     )
 
-    model.train(500)
+    model.train(50)
     sys.exit()
