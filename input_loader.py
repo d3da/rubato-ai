@@ -107,8 +107,8 @@ class PerformanceInputLoader:
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
                 )).shuffle(8092)  # (s+1)
                   .prefetch(tf.data.AUTOTUNE)
-                  .batch(batch_size, drop_remainder=True)  # (b, s+1)  TODO can we remove the drop
-                  .map(PerformanceInputLoader.split_x_y)  # (b, Tuple(s, s))
+                  .batch(batch_size, drop_remainder=False)  # (<=b, s+1)
+                  .map(PerformanceInputLoader.split_x_y)  # (<=b, Tuple(s, s))
                   .prefetch(tf.data.AUTOTUNE))
 
         # TODO we really don't need 8 processes to generate the test set
@@ -178,15 +178,12 @@ class PerformanceInputLoader:
                 yield seq
 
             except queue.Empty:
-                # Check if every child is done
-                # (children might still produce something during the check)
                 done = True
                 for slave in slaves:
                     if slave.is_alive():
                         done = False
                         break
                 if done:
-                    print('Exhausted workers')
                     break
 
         for slave in slaves:
