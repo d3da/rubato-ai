@@ -25,13 +25,10 @@ Future improvements:
 from input_loader import PerformanceInputLoader
 from input_loader import sequence_to_midi
 
-from typing import Optional
-
 import os
 import sys
 import time
 
-import midi2audio
 import tensorflow as tf
 
 
@@ -170,12 +167,9 @@ class TrainCallback(tf.keras.callbacks.Callback):
                  update_freq: int = 25,
                  save_midi_freq: int = 50,
                  save_checkpoint_freq: int = 100,
-                 write_steps_per_second: bool = True,
-                 save_wav_files: bool = True,
-                 audio_soundfont: str = '/usr/share/sounds/sf2/steinway.sf2'):
+                 write_steps_per_second: bool = True):
         super().__init__()
         # TODO global epoch as well?
-        # TODO output tf.summary.audio
 
         self.train_dir = train_dir
         self.sample_dir = os.path.join(train_dir, 'train_samples')
@@ -186,9 +180,6 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.save_midi_freq = save_midi_freq
         self.save_checkpoint_freq = save_checkpoint_freq
         self.write_steps_per_second = write_steps_per_second
-        self.save_wav_files = save_wav_files
-        if save_wav_files:
-            self.fluidsynth = midi2audio.FluidSynth(audio_soundfont)
 
         self._batch_start_time = 0.
         self.writer = None
@@ -221,9 +212,6 @@ class TrainCallback(tf.keras.callbacks.Callback):
             midi = sequence_to_midi(music)
             midi_path = os.path.join(os.path.join(self.sample_dir, f'sample_batch_{step}.midi'))
             midi.save(midi_path)
-            if self.save_wav_files:
-                wav_path = os.path.join(os.path.join(self.sample_dir, f'sample_batch_{step}.wav'))
-                self.fluidsynth.midi_to_audio(midi_path, wav_path)
 
         if step % self.save_checkpoint_freq == 0:
             self.model.chkpt_mgr.save()
