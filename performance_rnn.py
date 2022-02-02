@@ -10,7 +10,6 @@ Implemented by Daan Dieperink
 
 TODO:
     Model:
-        Add validation data to model.fit
         sampling temp / beamsearch etc
     Misc:
         Remove relative paths, make all relative to __dir__
@@ -89,6 +88,7 @@ class PerformanceRNNModel(tf.keras.Model):
         chkpt_dir = os.path.join(train_dir, 'checkpoints', model_name)
         chkpt = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
         self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+        self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.chkpt_mgr = tf.train.CheckpointManager(
                 chkpt,
                 directory=chkpt_dir,
@@ -97,7 +97,7 @@ class PerformanceRNNModel(tf.keras.Model):
         if restore_chkpt:
             chkpt.restore(self.chkpt_mgr.latest_checkpoint)
             if self.batch_ctr.value() != 0:
-                print(f'Restored checkpoint (batch {self.batch_ctr.value()})')
+                print(f'Restored checkpoint (batch {self.batch_ctr.value()}, epoch {self.epoch_ctr.value()})')
             else:
                 print('Initialized model')
 
@@ -169,7 +169,6 @@ class TrainCallback(tf.keras.callbacks.Callback):
                  save_checkpoint_freq: int = 100,
                  write_steps_per_second: bool = True):
         super().__init__()
-        # TODO global epoch as well?
 
         self.train_dir = train_dir
         self.sample_dir = os.path.join(train_dir, 'train_samples')
@@ -219,7 +218,12 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.model.batch_ctr.assign_add(1)
 
     def on_epoch_end(self, epoch, logs=None):
-        print(f'\nTotal steps: {self.model.batch_ctr.value().numpy()}\n')
+        tot_epoch = self.model.epoch_ctr.assign_add(1).value()
+
+        print(f'\nTotal steps: {self.model.batch_ctr.value().numpy()}')
+        print(f'Total epochs: {tot_epoch}\n')
+
+        self.model.chkpt_mgr.save()
 
         if not logs:
             return
@@ -229,11 +233,11 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if train_logs:
             with self.writer.as_default():
                 for name, value in train_logs.items():
-                    tf.summary.scalar('epoch_' + name, value, step=epoch)
+                    tf.summary.scalar('epoch_' + name, value, step=tot_epoch)
         if val_logs:
             with self.writer.as_default():
                 for name, value in val_logs.items():
-                    tf.summary.scalar(name, value, step=epoch)
+                    tf.summary.scalar(name, value, step=tot_epoch)
 
 
 if __name__ == '__main__':
