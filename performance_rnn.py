@@ -102,6 +102,7 @@ class PerformanceRNNModel(tf.keras.Model):
                 print('Initialized model')
 
         self.callbacks = [TrainCallback(train_dir=train_dir)]
+        self.load_time = time.localtime()
 
     def call(self, inputs, training=False, states=None, return_states=False):
         """
@@ -193,7 +194,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.writer = None
 
     def on_train_begin(self, logs=None):
-        run_time = time.strftime('%Y.%m.%d-%H:%M:%S', time.localtime())
+        run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)
         log_dir = str(os.path.join('logs', self.model.name, run_time))
         self.writer = tf.summary.create_file_writer(log_dir)
 
