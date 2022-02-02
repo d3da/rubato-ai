@@ -221,6 +221,20 @@ class TrainCallback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         print(f'\nTotal steps: {self.model.batch_ctr.value().numpy()}\n')
 
+        if not logs:
+            return
+
+        train_logs = {k: v for k, v in logs.items() if not k.startswith('val_')}
+        val_logs = {k: v for k, v in logs.items() if k.startswith('val_')}
+        if train_logs:
+            with self.writer.as_default():
+                for name, value in train_logs.items():
+                    tf.summary.scalar('epoch_' + name, value, step=epoch)
+        if val_logs:
+            with self.writer.as_default():
+                for name, value in val_logs.items():
+                    tf.summary.scalar(name, value, step=epoch)
+
 
 if __name__ == '__main__':
     dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
