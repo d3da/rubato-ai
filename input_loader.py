@@ -70,7 +70,7 @@ def random_augmentation(augmentation_setting: Optional[str]) -> Tuple[int, float
 
 
 def file_to_seq(path: str, base_data_path: str,
-                augmentation: Optional[str]) -> np.array:
+                augmentation: Optional[str] = None) -> np.array:
     midi = mido.MidiFile(os.path.join(base_data_path, path))
     pitch_augmentation, time_augmentation = random_augmentation(augmentation)
     events = midi_to_events(midi, pitch_augmentation, time_augmentation)
@@ -101,7 +101,7 @@ class PerformanceInputLoader:
 
         self.dataset = (
             tf.data.Dataset.from_generator(
-                PerformanceInputLoader.threaded_sequence_generator,
+                PerformanceInputLoader.threaded_window_generator,
                 args=(train, base_data_path, augmentation, window_size, min_stride, max_stride),
                 output_signature=(
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
@@ -110,6 +110,17 @@ class PerformanceInputLoader:
                   .batch(batch_size, drop_remainder=True)  # (b, s+1)  TODO can we remove the drop
                   .map(PerformanceInputLoader.split_x_y)  # (b, Tuple(s, s))
                   .prefetch(tf.data.AUTOTUNE))
+
+        # TODO we really don't need 8 processes to generate the test set
+        # also do we want randomness in the test dataset?
+        self.test_dataset = (
+                tf.data.Dataset.from_generator(
+                    PerformanceInputLoader.threaded_window_generator,
+                    args=(test, base_data_path, '', window_size, min_stride, max_stride),
+                    output_signature=(
+                        tf.TensorSpec(shape=window_size, dtype=tf.int32)
+                    )).batch(batch_size, drop_remainder=False)
+                      .map(PerformanceInputLoader.split_x_y))
 
     class SequenceProducerThread(multiprocessing.Process):
         def __init__(self, path_list, base_data_path, augmentation, buffer):
@@ -125,13 +136,22 @@ class PerformanceInputLoader:
                 self.buffer.put(seq)
 
     @staticmethod
-    def threaded_sequence_generator(
+    def threaded_window_generator(
             path_list,
             base_data_path,
             augmentation,
             window_size,
             min_stride,
             max_stride):
+        for seq in PerformanceInputLoader.threaded_sequence_generator(path_list, base_data_path, augmentation):
+            for win in seq_to_windows_iterator(seq, window_size, min_stride, max_stride):
+                yield win
+
+    @staticmethod
+    def threaded_sequence_generator(
+            path_list,
+            base_data_path,
+            augmentation):
 
         # TODO: allow configuring these performance-impacting hparams
         # no effect on dataset output
@@ -155,8 +175,7 @@ class PerformanceInputLoader:
             try:
                 # Return the next item in fifo queue
                 seq = buffer.get(block=True, timeout=10)
-                for win in seq_to_windows_iterator(seq, window_size, min_stride, max_stride):
-                    yield win
+                yield seq
 
             except queue.Empty:
                 # Check if every child is done

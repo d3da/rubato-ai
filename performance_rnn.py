@@ -25,10 +25,13 @@ Future improvements:
 from input_loader import PerformanceInputLoader
 from input_loader import sequence_to_midi
 
+from typing import Optional
+
 import os
 import sys
 import time
 
+import midi2audio
 import tensorflow as tf
 
 
@@ -126,7 +129,7 @@ class PerformanceRNNModel(tf.keras.Model):
         # TODO validation metrics
         return self.fit(self.input_loader.dataset, epochs=epochs,
                         callbacks=self.callbacks,
-                        validation_data=None)
+                        validation_data=self.input_loader.test_dataset)
 
     @tf.function
     def generate_step(self, inputs, states, temperature):
@@ -137,6 +140,7 @@ class PerformanceRNNModel(tf.keras.Model):
         return predicted_categories, states
 
     # todo provide interface for sampling temperature / beam search etc
+    # todo generate multiple samples at once
     def sample_music(self, start_event_category=0, sample_length=512, temperature=1.0):
         states = None
         next_category = tf.constant([start_event_category], shape=(1, 1))
@@ -163,10 +167,12 @@ class TrainCallback(tf.keras.callbacks.Callback):
     """
     def __init__(self,
                  train_dir,
-                 update_freq=25,
-                 save_midi_freq=50,
-                 save_checkpoint_freq=100,
-                 write_steps_per_second=True):
+                 update_freq: int = 25,
+                 save_midi_freq: int = 50,
+                 save_checkpoint_freq: int = 100,
+                 write_steps_per_second: bool = True,
+                 save_wav_files: bool = True,
+                 audio_soundfont: str = '/usr/share/sounds/sf2/steinway.sf2'):
         super().__init__()
         # TODO global epoch as well?
         # TODO output tf.summary.audio
@@ -180,6 +186,9 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.save_midi_freq = save_midi_freq
         self.save_checkpoint_freq = save_checkpoint_freq
         self.write_steps_per_second = write_steps_per_second
+        self.save_wav_files = save_wav_files
+        if save_wav_files:
+            self.fluidsynth = midi2audio.FluidSynth(audio_soundfont)
 
         self._batch_start_time = 0.
         self.writer = None
@@ -210,7 +219,11 @@ class TrainCallback(tf.keras.callbacks.Callback):
             # Generate sample
             music = self.model.sample_music()
             midi = sequence_to_midi(music)
-            midi.save(os.path.join(self.sample_dir, f'sample_batch_{step}.midi'))
+            midi_path = os.path.join(os.path.join(self.sample_dir, f'sample_batch_{step}.midi'))
+            midi.save(midi_path)
+            if self.save_wav_files:
+                wav_path = os.path.join(os.path.join(self.sample_dir, f'sample_batch_{step}.wav'))
+                self.fluidsynth.midi_to_audio(midi_path, wav_path)
 
         if step % self.save_checkpoint_freq == 0:
             self.model.chkpt_mgr.save()
