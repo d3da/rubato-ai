@@ -11,16 +11,20 @@ Implemented by Daan Dieperink
 TODO:
     Model:
         sampling temp / beamsearch etc
+        early stopping
     Misc:
         Remove relative paths, make all relative to __dir__
+        sequence padding+masking
 
     Train!
 
 Future improvements:
     Argparse for cli use
     Optimization/profiling
-    Playback to alsa sequencer
+    Refactor for training abstraction
 """
+import pdb
+
 from input_loader import PerformanceInputLoader
 from input_loader import sequence_to_midi
 
@@ -143,21 +147,22 @@ class PerformanceRNNModel(tf.keras.Model):
         predicted_logits, states = self(inputs=inputs, states=states, return_states=True)
         predicted_logits = predicted_logits[:, -1, :]
         predicted_logits *= temperature
-        predicted_categories = tf.random.categorical(predicted_logits, num_samples=1)
+        predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories, states
 
     # todo provide interface for sampling temperature / beam search etc
     # todo generate multiple samples at once
-    def sample_music(self, start_event_category=0, sample_length=512, temperature=1.0):
+    # todo make this tf.function
+    # todo primers etc
+    def sample_music(self, start_event_category=0, sample_length=512, num_seqs=2, temperature=1.0):
         states = None
-        next_category = tf.constant([start_event_category], shape=(1, 1))
+        next_category = tf.constant([start_event_category]*num_seqs, shape=(num_seqs, 1), dtype=tf.int32)
         temperature = tf.constant(temperature, dtype=tf.float32)
-        result = [next_category]
+        result = next_category[:]
         for _ in range(sample_length):
             next_category, states = self.generate_step(
                     next_category, states, temperature)
-            result.append(next_category)
-        result = [r.numpy()[0][0] for r in result]
+            result = tf.concat([result, next_category], axis=1)
         return result
 
 
@@ -218,9 +223,10 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if step % self.save_midi_freq == 0:
             # Generate sample
             music = self.model.sample_music()
-            midi = sequence_to_midi(music)
-            midi_path = os.path.join(os.path.join(self.sample_dir, f'sample_batch_{step}.midi'))
-            midi.save(midi_path)
+            for i, seq in enumerate(music):
+                midi = sequence_to_midi(seq)
+                midi_path = os.path.join(os.path.join(self.sample_dir, f'{self.model.name}_{step}_{i}.midi'))
+                midi.save(midi_path)
 
         if step % self.save_checkpoint_freq == 0:
             self.model.chkpt_mgr.save()
