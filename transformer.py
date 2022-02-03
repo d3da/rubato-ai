@@ -2,7 +2,9 @@
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
+import pdb
 
+import numpy as np
 import tensorflow as tf
 
 
@@ -26,7 +28,7 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
 class TransformerBlock(tf.keras.layers.Layer):
     def __init__(self, embed_dim, num_heads, ff_dim, drop_rate=0.1):
         super().__init__()
-        self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim)
+        self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
@@ -55,15 +57,32 @@ class InputEmbedding(tf.keras.layers.Layer):
     def __init__(self, maxlen, vocab_size, embed_dim):
         super().__init__()
         self.token_emb = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embed_dim)
-        self.pos_emb = tf.keras.layers.Embedding(input_dim=maxlen, output_dim=embed_dim)
+        self.embed_dim = embed_dim
+        # self.pos_emb = tf.keras.layers.Embedding(input_dim=maxlen, output_dim=embed_dim)
+        self.pos_emb_values = tf.constant(
+            InputEmbedding.get_positional_encodings(maxlen, embed_dim),
+            dtype=tf.float32, shape=(maxlen, embed_dim)
+        )
 
     def call(self, x):
         maxlen = tf.shape(x)[-1]
-        positions = tf.range(start=0, limit=maxlen, delta=1)
-        positions = self.pos_emb(positions)
+        # positions = tf.range(start=0, limit=maxlen, delta=1)
+        # positions = self.pos_emb(positions)
         x = self.token_emb(x)
-        return x + positions
+        # positions = tf.numpy_function(
+        #     InputEmbedding.get_positional_encodings,
+        #     inp=[maxlen, self.embed_dim], Tout=tf.float32
+        # )
+        # pdb.set_trace()
+        return x + self.pos_emb_values
 
+    def get_positional_encodings(num_positions, emb_dim):
+        def get_position_angle_vec(position):
+            return [position / np.power(10000, 2 * (hid_j // 2) / emb_dim) for hid_j in range(emb_dim)]
+        sinusoid_table = np.array([get_position_angle_vec(pos_i) for pos_i in range(num_positions)])
+        sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
+        sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
+        return sinusoid_table
 
 class TransformerModel(tf.keras.Model):
     def __init__(self,

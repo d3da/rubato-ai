@@ -22,7 +22,7 @@ class PerformanceModel(tf.keras.Model):
                  model_name,
                  train_dir,
                  restore_checkpoint,
-                 learning_rate):
+                 ):
         super().__init__(name=model_name)
         self.input_loader = input_loader
         self.train_dir = train_dir
@@ -31,7 +31,9 @@ class PerformanceModel(tf.keras.Model):
         self.inner_model = inner_model
 
         # Adam optimizer
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        # TODO
+        # self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        self.optimizer = self._get_optimizer_noam(512)
         # Model returns probability logits, dataset returns category indices
         self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
         self.compile(optimizer=self.optimizer, loss=self.loss,
@@ -55,6 +57,24 @@ class PerformanceModel(tf.keras.Model):
 
         self.callbacks = [TrainCallback(train_dir=train_dir)]
         self.load_time = time.localtime()
+
+    # TODO how to abstract the choice in opmimizer?
+    # Maybe define it at the inner model level after all? Seems to make more sense
+    def _get_optimizer_legacy(self, legacy_learning_rate):
+        return tf.keras.opimizers.Adam(learning_rate=legacy_learning_rate)
+    def _get_optimizer_noam(self,
+                            model_dim,
+                            noam_warmup_steps = 4000,
+                            adam_beta1 = 0.9,
+                            adam_beta2 = 0.98,
+                            adam_eps = 1e-9):
+        def noam_lr_schedule():  # Vaswani et al. 2017
+            step = tf.cast(self.batch_ctr.value(), tf.float32)
+            min_part = tf.math.minimum(step**(-0.5), step*noam_warmup_steps**(-1.5))
+            return model_dim**(-0.5) * min_part
+        return tf.keras.optimizers.Adam(learning_rate=noam_lr_schedule,
+                                        beta_1=adam_beta1, beta_2=adam_beta2,
+                                        epsilon=adam_eps)
 
     def call(self, inputs, training=False, states=None, return_states=False):
         # TODO handle stateful / stateless inner model
@@ -178,9 +198,31 @@ if __name__ == '__main__':
         augmentation='aug-'
     )
     # inner_model = PerformanceRNNModel(input_loader.vocab_size)
-    inner_model = TransformerModel(input_loader.vocab_size, 512)
 
-    model = PerformanceModel(inner_model, input_loader, 'outer_model', PROJECT_DIR, False, 1e-3)
+    # Vaswani 2017, (differs from Anna Huang 2018 baseline)
+    inner_model = TransformerModel(
+        vocab_size=input_loader.vocab_size,
+        sequence_length=512,
+        num_layers=6,  # Vaswani et al. (2017)
+        drop_rate=0.1,  # Vaswani et al. (2017)
+        embed_dim=512,  # Vaswani et al. (2017)
+        attn_heads = 8,  # Vaswani et al. (2017)
+        ff_dim = 2048,  # Vaswani et al. (2017)
+        # TODO label smoothing = 0.1
+    )
+
+    model = PerformanceModel(
+        inner_model,
+        input_loader,
+        'outer_model',
+        PROJECT_DIR,
+        restore_checkpoint=True,
+        # learning_rate=1e-3,
+        # adam_b1=0.9,
+        # adam_b2=0.98,
+        # adam_eps=1e-9,
+        # lr_warmup_steps=4000,
+    )
     model.train(1)
     sys.exit()
 
