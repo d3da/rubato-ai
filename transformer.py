@@ -88,7 +88,8 @@ class TransformerModel(tf.keras.Model):
 
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         self.loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-        self.compile(optimizer=self.optimizer, loss=self.loss)
+        self.compile(optimizer=self.optimizer, loss=self.loss,
+                     metrics=['accuracy'])
 
         # Setup checkpoints
         checkpoint_dir = os.path.join(train_dir, 'checkpoints', model_name)
@@ -116,18 +117,18 @@ class TransformerModel(tf.keras.Model):
         return self.dense(x)
 
     def train(self, epochs):
-        return self.fit(self.input_loader.dataset, epochs=epochs)
+        return self.fit(self.input_loader.dataset, epochs=epochs, callbacks=self.callbacks)
 
     @tf.function
     def generate_step(self, inputs, temperature):
         predicted_logits = self(inputs)
         predicted_logits = predicted_logits[:, -1, :]
         predicted_logits *= temperature
-        predicted_categories = tf.random.categorical(predicted_logits, num_samples=1)
-        return tf.concat([inputs, predicted_categories], axis=-1)
+        predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
+        return tf.concat([inputs, predicted_categories], axis=1)
 
-    def sample_music(self, start_event_category=0, sample_length=512, temperature=1.0):
-        result = tf.constant([start_event_category], shape=(1, 1))
+    def sample_music(self, start_event_category=0, sample_length=512, num_seqs=2, temperature=1.0):
+        result = tf.constant([start_event_category]*num_seqs, shape=(num_seqs, 1), dtype=tf.int32)
         temperature = tf.constant(temperature, dtype=tf.float32)
         for _ in range(sample_length):
             result = self.generate_step(result, temperature)
@@ -164,4 +165,3 @@ if __name__ == '__main__':
 
     model.train(1)
     sys.exit()
-
