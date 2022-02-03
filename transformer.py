@@ -2,15 +2,18 @@
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
-import os
-import pdb
-import sys
-import time
+# import os
+# import pdb
+# import sys
+# import time
 
 import tensorflow as tf
 
-from input_loader import PerformanceInputLoader
-from performance_rnn import PROJECT_DIR, TrainCallback
+# from input_loader import PerformanceInputLoader
+# from performance_rnn import PROJECT_DIR, TrainCallback
+
+
+# PROJECT_DIR = os.path.dirname(__file__)
 
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
@@ -73,56 +76,61 @@ class InputEmbedding(tf.keras.layers.Layer):
 
 
 class TransformerModel(tf.keras.Model):
-    def __init__(self, input_loader,
-                 model_name, train_dir,
-                 restore_checkpoint,
-                 num_layers, drop_rate,
-                 embed_dim, attn_heads,
-                 ff_dim, seq_len, learning_rate):
-        super().__init__(self, name=model_name)
-        self.input_loader = input_loader
-        vocab_size = input_loader.vocab_size
+    def __init__(self,
+                 # input_loader,
+                 # model_name, train_dir,
+                 # restore_checkpoint,
+                 vocab_size,
+                 sequence_length,
+                 num_layers = 2, drop_rate = 0.1,
+                 embed_dim = 128, attn_heads = 2,
+                 ff_dim = 1024):
+                # learning_rate):
+        super().__init__(self)
+        # super().__init__(self, name=model_name)
+        # self.input_loader = input_loader
+        # vocab_size = input_loader.vocab_size
 
-        self.emb = InputEmbedding(seq_len, vocab_size, embed_dim)
+        self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim)
         self.transformer_blocks = [
             TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate)
             for _ in range(num_layers)
         ]
         self.dense = tf.keras.layers.Dense(vocab_size)
 
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-        self.loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
-        self.compile(optimizer=self.optimizer, loss=self.loss,
-                     metrics=['accuracy'])
+        # self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
+        # self.loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+        # self.compile(optimizer=self.optimizer, loss=self.loss,
+        #              metrics=['accuracy'])
+        #
+        # # Setup checkpoints
+        # checkpoint_dir = os.path.join(train_dir, 'checkpoints', model_name)
+        # checkpoint = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
+        # self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+        # self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+        # self.chkpt_mgr = tf.train.CheckpointManager(
+        #     checkpoint,
+        #     directory=checkpoint_dir,
+        #     max_to_keep=50,
+        #     step_counter=self.batch_ctr)
+        # if restore_checkpoint:
+        #     checkpoint.restore(self.chkpt_mgr.latest_checkpoint)
+        #     if self.batch_ctr.value() != 0:
+        #         print(f'Restored checkpoint (batch {self.batch_ctr.value()}, epoch {self.epoch_ctr.value()})')
+        #     else:
+        #         print('Initialized model')
+        #
+        # self.callbacks = [TrainCallback(train_dir=train_dir)]
+        # self.load_time = time.localtime()
 
-        # Setup checkpoints
-        checkpoint_dir = os.path.join(train_dir, 'checkpoints', model_name)
-        checkpoint = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
-        self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
-        self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
-        self.chkpt_mgr = tf.train.CheckpointManager(
-            checkpoint,
-            directory=checkpoint_dir,
-            max_to_keep=50,
-            step_counter=self.batch_ctr)
-        if restore_checkpoint:
-            checkpoint.restore(self.chkpt_mgr.latest_checkpoint)
-            if self.batch_ctr.value() != 0:
-                print(f'Restored checkpoint (batch {self.batch_ctr.value()}, epoch {self.epoch_ctr.value()})')
-            else:
-                print('Initialized model')
-
-        self.callbacks = [TrainCallback(train_dir=train_dir)]
-        self.load_time = time.localtime()
-
-    def call(self, inputs, **kwargs):
+    def call(self, inputs, *args, **kwargs):
         x = self.emb(inputs)
         for block in self.transformer_blocks:
             x = block(x)
         return self.dense(x)
 
-    def train(self, epochs):
-        return self.fit(self.input_loader.dataset, epochs=epochs, callbacks=self.callbacks)
+    # def train(self, epochs):
+    #     return self.fit(self.input_loader.dataset, epochs=epochs, callbacks=self.callbacks)
 
     @tf.function
     def generate_step(self, inputs, temperature):
@@ -141,34 +149,34 @@ class TransformerModel(tf.keras.Model):
         return result
 
 
-if __name__ == '__main__':
-
-    dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
-    dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
-
-    input_loader = PerformanceInputLoader(
-        dataset_base,
-        dataset_csv,
-        sequence_length=512,
-        min_stride=128,
-        max_stride=256,
-        batch_size=64,
-        augmentation='aug-'
-    )
-
-    model = TransformerModel(
-        input_loader=input_loader,
-        model_name='base_transformer',
-        train_dir=PROJECT_DIR,
-        restore_checkpoint=True,
-        num_layers=6,
-        drop_rate=0.1,
-        embed_dim=128,
-        attn_heads=4,
-        ff_dim=128,
-        seq_len=512,
-        learning_rate=1e-3
-    )
-
-    model.train(1)
-    sys.exit()
+# if __name__ == '__main__':
+#
+#     dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
+#     dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
+#
+#     input_loader = PerformanceInputLoader(
+#         dataset_base,
+#         dataset_csv,
+#         sequence_length=512,
+#         min_stride=128,
+#         max_stride=256,
+#         batch_size=64,
+#         augmentation='aug-'
+#     )
+#
+#     model = TransformerModel(
+#         input_loader=input_loader,
+#         model_name='base_transformer',
+#         train_dir=PROJECT_DIR,
+#         restore_checkpoint=True,
+#         num_layers=6,
+#         drop_rate=0.1,
+#         embed_dim=128,
+#         attn_heads=4,
+#         ff_dim=128,
+#         seq_len=512,
+#         learning_rate=1e-3
+#     )
+#
+#     model.train(1)
+#     sys.exit()
