@@ -26,7 +26,7 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
 
 
 class TransformerBlock(tf.keras.layers.Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate=0.1):
+    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate):
         super().__init__()
         self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads)
         self.ffn = tf.keras.Sequential([
@@ -58,31 +58,31 @@ class InputEmbedding(tf.keras.layers.Layer):
         super().__init__()
         self.token_emb = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embed_dim)
         self.embed_dim = embed_dim
-        # self.pos_emb = tf.keras.layers.Embedding(input_dim=maxlen, output_dim=embed_dim)
-        self.pos_emb_values = tf.constant(
-            InputEmbedding.get_positional_encodings(maxlen, embed_dim),
-            dtype=tf.float32, shape=(maxlen, embed_dim)
-        )
+        self.pos_enc = InputEmbedding.positional_encoding(maxlen, embed_dim)
 
     def call(self, x):
-        maxlen = tf.shape(x)[-1]
-        # positions = tf.range(start=0, limit=maxlen, delta=1)
-        # positions = self.pos_emb(positions)
+        seq_len = tf.shape(x)[-1]
         x = self.token_emb(x)
-        # positions = tf.numpy_function(
-        #     InputEmbedding.get_positional_encodings,
-        #     inp=[maxlen, self.embed_dim], Tout=tf.float32
-        # )
-        # pdb.set_trace()
-        return x + self.pos_emb_values
+        return x + self.pos_enc[:, :seq_len, :]
 
-    def get_positional_encodings(num_positions, emb_dim):
-        def get_position_angle_vec(position):
-            return [position / np.power(10000, 2 * (hid_j // 2) / emb_dim) for hid_j in range(emb_dim)]
-        sinusoid_table = np.array([get_position_angle_vec(pos_i) for pos_i in range(num_positions)])
-        sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
-        sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
-        return sinusoid_table
+    @staticmethod
+    def get_angles(pos, i, d_model):
+        angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
+        return pos * angle_rates
+
+    @staticmethod
+    def positional_encoding(position, d_model):
+        angle_rads = InputEmbedding.get_angles(
+            np.arange(position)[:, np.newaxis],
+            np.arange(d_model)[np.newaxis, :],
+            d_model
+        )
+        angle_rads[:, 0::2] = np.sin(angle_rads[:, 0::2])
+        angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
+        pos_encoding = angle_rads[np.newaxis, ...]
+
+        return tf.cast(pos_encoding, dtype=tf.float32)
+
 
 class TransformerModel(tf.keras.Model):
     def __init__(self,
