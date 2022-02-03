@@ -2,16 +2,11 @@
 """
 https://arxiv.org/abs/1808.03715v1
 """
-from typing import List, Tuple, Iterable, Optional
+from typing import List, Iterable
 
-import os
-import sys
-import csv
-import random
 import pdb
 
 import mido
-import numpy as np
 
 
 class Event:
@@ -63,7 +58,8 @@ class Event:
         return False
 
     @staticmethod
-    def from_category(cat: int) -> 'Event':
+    def from_category(cat) -> 'Event':
+        cat = int(cat)  # cast from possible tensor or numpy int types
         if cat < 0:
             raise ValueError('Event category cannot be negative')
         if cat < 128:
