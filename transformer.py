@@ -75,7 +75,8 @@ class InputEmbedding(tf.keras.layers.Layer):
 class TransformerModel(tf.keras.Model):
     def __init__(self, input_loader,
                  model_name, train_dir,
-                 restore_checkpoint, drop_rate,
+                 restore_checkpoint,
+                 num_layers, drop_rate,
                  embed_dim, attn_heads,
                  ff_dim, seq_len, learning_rate):
         super().__init__(self, name=model_name)
@@ -83,7 +84,10 @@ class TransformerModel(tf.keras.Model):
         vocab_size = input_loader.vocab_size
 
         self.emb = InputEmbedding(seq_len, vocab_size, embed_dim)
-        self.transformer_block = TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate)
+        self.transformer_blocks = [
+            TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate)
+            for _ in range(num_layers)
+        ]
         self.dense = tf.keras.layers.Dense(vocab_size)
 
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
@@ -111,9 +115,10 @@ class TransformerModel(tf.keras.Model):
         self.callbacks = [TrainCallback(train_dir=train_dir)]
         self.load_time = time.localtime()
 
-    def call(self, inputs, *args):
+    def call(self, inputs, **kwargs):
         x = self.emb(inputs)
-        x = self.transformer_block(x)
+        for block in self.transformer_blocks:
+            x = block(x)
         return self.dense(x)
 
     def train(self, epochs):
@@ -127,6 +132,7 @@ class TransformerModel(tf.keras.Model):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return tf.concat([inputs, predicted_categories], axis=1)
 
+    @tf.function
     def sample_music(self, start_event_category=0, sample_length=512, num_seqs=2, temperature=1.0):
         result = tf.constant([start_event_category]*num_seqs, shape=(num_seqs, 1), dtype=tf.int32)
         temperature = tf.constant(temperature, dtype=tf.float32)
@@ -155,6 +161,7 @@ if __name__ == '__main__':
         model_name='base_transformer',
         train_dir=PROJECT_DIR,
         restore_checkpoint=True,
+        num_layers=6,
         drop_rate=0.1,
         embed_dim=128,
         attn_heads=4,
