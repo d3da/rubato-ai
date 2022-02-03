@@ -77,8 +77,8 @@ class PerformanceRNNModel(tf.keras.Model):
                                           dropout=dropout)
         self.dense = tf.keras.layers.Dense(self.vocab_size)
 
-        # Optimize using stochastic gradient descent
-        self.optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+        # Adam optimizer
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
         # Model returns probability logits, dataset returns category indices
         self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
         self.compile(optimizer=self.optimizer, loss=self.loss,
@@ -92,7 +92,7 @@ class PerformanceRNNModel(tf.keras.Model):
         self.chkpt_mgr = tf.train.CheckpointManager(
                 chkpt,
                 directory=chkpt_dir,
-                max_to_keep=100,
+                max_to_keep=50,
                 step_counter=self.batch_ctr)
         if restore_chkpt:
             chkpt.restore(self.chkpt_mgr.latest_checkpoint)
@@ -238,12 +238,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if not logs:
             return
 
-        train_logs = {k: v for k, v in logs.items() if not k.startswith('val_')}
         val_logs = {k: v for k, v in logs.items() if k.startswith('val_')}
-        if train_logs:
-            with self.writer.as_default():
-                for name, value in train_logs.items():
-                    tf.summary.scalar('epoch_' + name, value, step=tot_epoch)
         if val_logs:
             with self.writer.as_default():
                 for name, value in val_logs.items():
