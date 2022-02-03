@@ -152,7 +152,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         print(f'\nTotal steps: {self.model.batch_ctr.value().numpy()}')
         print(f'Total epochs: {tot_epoch}\n')
 
-        self.model.chkpt_mgr.save()
+        self.model.checkpoint_mgr.save()
 
         if not logs:
             return
