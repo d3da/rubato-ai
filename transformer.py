@@ -2,8 +2,6 @@
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
-import pdb
-
 import numpy as np
 import tensorflow as tf
 
@@ -53,6 +51,8 @@ class TransformerBlock(tf.keras.layers.Layer):
 class InputEmbedding(tf.keras.layers.Layer):
     """
     Learned token embeddings are added to learned positional embeddings.
+
+    from https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder
     """
     def __init__(self, maxlen, vocab_size, embed_dim):
         super().__init__()
@@ -84,26 +84,27 @@ class InputEmbedding(tf.keras.layers.Layer):
         return tf.cast(pos_encoding, dtype=tf.float32)
 
 
-class TransformerModel(tf.keras.Model):
+class TransformerModel(tf.keras.layers.Layer):
     def __init__(self,
                  vocab_size,
                  sequence_length,
-                 num_layers = 2, drop_rate = 0.1,
-                 embed_dim = 128, attn_heads = 2,
-                 ff_dim = 1024):
-        super().__init__(self)
+                 num_layers,
+                 drop_rate,
+                 embed_dim,
+                 attn_heads,
+                 ff_dim):
+        super().__init__()
 
         self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim)
-        self.transformer_blocks = [
+        self.transformer_stack = tf.keras.Sequential([
             TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate)
             for _ in range(num_layers)
-        ]
+        ])
         self.dense = tf.keras.layers.Dense(vocab_size)
 
     def call(self, inputs, *args, **kwargs):
         x = self.emb(inputs)
-        for block in self.transformer_blocks:
-            x = block(x)
+        x = self.transformer_stack(x)
         return self.dense(x)
 
     @tf.function
@@ -121,5 +122,3 @@ class TransformerModel(tf.keras.Model):
         for _ in range(sample_length):
             result = self.generate_step(result, temperature)
         return result
-
-

@@ -217,12 +217,9 @@ if __name__ == '__main__':
         'outer_model',
         PROJECT_DIR,
         restore_checkpoint=True,
-        # learning_rate=1e-3,
-        # adam_b1=0.9,
-        # adam_b2=0.98,
-        # adam_eps=1e-9,
-        # lr_warmup_steps=4000,
     )
+    model.__call__(tf.zeros((64, 512), dtype=tf.int32))
+    model.summary()
     model.train(1)
     sys.exit()
 
