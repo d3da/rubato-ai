@@ -23,10 +23,68 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     return tf.tile(mask, mult)
 
 
+class MultiHeadAttention(tf.keras.layers.Layer):
+    """
+    Vaswani et al. (2017)
+
+    https://nn.labml.ai/transformers/mha.html
+    """
+    def __init__(self, num_heads, embed_dim):
+        super().__init__()
+        self._num_heads = num_heads
+        self._embed_dim = embed_dim
+
+        self._d_k = embed_dim // num_heads
+        assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
+                                            f'Got num_heads={num_heads} and embed_dim={embed_dim}')
+
+        self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        self.V = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+
+        self.scale = 1 / tf.math.sqrt(tf.cast(self._d_k, tf.float32))
+
+        self.softmax = tf.keras.layers.Softmax(axis=1)
+
+        self.O = tf.keras.layers.Dense(embed_dim)
+
+    def call(self, inputs, mask):
+
+        # inputs: (batch_size, seq_len, embed_dim)
+        batch_size, seq_len, embed_dim = inputs.shape[:]
+
+        # print(f'inputs:{inputs.shape}')
+
+        # q, k, v: (batch_size, seq_len, num_heads, d_k)
+        q = self.Q(inputs) * self.scale
+        k = self.K(inputs)
+        v = self.V(inputs)
+
+        attn_score = tf.einsum('bihd,bjhd->bijh', q, k)  # Q x K.T
+        # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
+
+        # mask: (batch_size, seq_len_q, seq_len_k)
+        if mask is not None:
+            mask = tf.expand_dims(mask, axis=-1)
+        # mask: (batch_size, seq_len_q, seq_len_k, 1)
+
+        attn_score = self.softmax(attn_score, mask=mask)  # softmax along seq_len_k
+        # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
+
+        x = tf.einsum('bijh,bihd->bjhd', attn_score, v)  # multiplication by V
+        # x: (batch_size, seq_len, num_heads, d_k)
+
+        x = tf.reshape(x, (-1, seq_len, embed_dim))
+        # x: (batch_size, seq_len, embed_dim)
+
+        return self.O(x)  # (batch_size, seq_len, embed_dim)
+
+
 class TransformerBlock(tf.keras.layers.Layer):
     def __init__(self, embed_dim, num_heads, ff_dim, drop_rate):
         super().__init__()
-        self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads)
+        # self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads)
+        self.attn = MultiHeadAttention(num_heads, embed_dim)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
@@ -40,7 +98,10 @@ class TransformerBlock(tf.keras.layers.Layer):
         batch_size = input_shape[0]
         seq_len = input_shape[1]
         causal_mask = causal_attention_mask(batch_size, seq_len, seq_len, tf.bool)
-        attn_output = self.attn(inputs, inputs, attention_mask=causal_mask)
+
+        # inputs: (batch_size, seq_len, embed_dim)
+        # attn_output = self.attn(inputs, inputs, attention_mask=causal_mask)
+        attn_output = self.attn(inputs, causal_mask)
         attn_output = self.dropout1(attn_output)
         attn_output = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(attn_output)
@@ -116,7 +177,7 @@ class TransformerModel(tf.keras.layers.Layer):
         return tf.concat([inputs, predicted_categories], axis=1)
 
     @tf.function
-    def sample_music(self, start_event_category=0, sample_length=512, num_seqs=2, temperature=1.0):
+    def sample_music(self, start_event_category=0, sample_length=64, num_seqs=2, temperature=1.0):
         result = tf.constant([start_event_category]*num_seqs, shape=(num_seqs, 1), dtype=tf.int32)
         temperature = tf.constant(temperature, dtype=tf.float32)
         for _ in range(sample_length):
