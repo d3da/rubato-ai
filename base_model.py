@@ -9,6 +9,7 @@ import time
 import tensorflow as tf
 
 from input_loader import PerformanceInputLoader, sequence_to_midi
+from optimizer import Optimizer
 from performance_rnn import PerformanceRNNModel
 from transformer import TransformerModel
 
@@ -22,18 +23,37 @@ class PerformanceModel(tf.keras.Model):
                  model_name,
                  train_dir,
                  restore_checkpoint,
-                 ):
+                 learning_rate=None,
+                 adam_beta1=None,
+                 adam_beta2=None,
+                 adam_eps=None,
+                 warmup_steps=None,
+                 embed_dimension=None):
         super().__init__(name=model_name)
         self.input_loader = input_loader
         self.train_dir = train_dir
 
-        # TODO
+        # TODO abstract base class for inner model
+        #      methods needed: call(), __call__(), sample_music(),
+        #   properties needed: optimizer??
+        # TODO config format
         self.inner_model = inner_model
 
-        # Adam optimizer
-        # TODO
-        # self.optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-        self.optimizer = self._get_optimizer_noam(512)
+        self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+        self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+
+        self.optimizer = Optimizer.create_adam_optimizer(
+            learning_rate,
+            adam_beta1,
+            adam_beta2,
+            adam_eps,
+            warmup_steps,
+            step_counter=self.batch_ctr,
+            embed_dimension=embed_dimension
+            # TODO get embed dim from inner model maybe?
+            # or rather from some kinda hparam config even
+        )
+
         # Model returns probability logits, dataset returns category indices
         self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
         self.compile(optimizer=self.optimizer, loss=self.loss,
@@ -41,8 +61,6 @@ class PerformanceModel(tf.keras.Model):
 
         checkpoint_dir = os.path.join(train_dir, 'checkpoints', model_name)
         checkpoint = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
-        self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
-        self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.checkpoint_mgr = tf.train.CheckpointManager(
             checkpoint,
             directory=checkpoint_dir,
@@ -57,24 +75,6 @@ class PerformanceModel(tf.keras.Model):
 
         self.callbacks = [TrainCallback(train_dir=train_dir)]
         self.load_time = time.localtime()
-
-    # TODO how to abstract the choice in opmimizer?
-    # Maybe define it at the inner model level after all? Seems to make more sense
-    def _get_optimizer_legacy(self, legacy_learning_rate):
-        return tf.keras.opimizers.Adam(learning_rate=legacy_learning_rate)
-    def _get_optimizer_noam(self,
-                            model_dim,
-                            noam_warmup_steps = 4000,
-                            adam_beta1 = 0.9,
-                            adam_beta2 = 0.98,
-                            adam_eps = 1e-9):
-        def noam_lr_schedule():  # Vaswani et al. 2017
-            step = tf.cast(self.batch_ctr.value(), tf.float32)
-            min_part = tf.math.minimum(step**(-0.5), step*noam_warmup_steps**(-1.5))
-            return model_dim**(-0.5) * min_part
-        return tf.keras.optimizers.Adam(learning_rate=noam_lr_schedule,
-                                        beta_1=adam_beta1, beta_2=adam_beta2,
-                                        epsilon=adam_eps)
 
     def call(self, inputs, training=False, states=None, return_states=False):
         # TODO handle stateful / stateless inner model
@@ -197,7 +197,13 @@ if __name__ == '__main__':
         batch_size=64,
         augmentation='aug-'
     )
-    # inner_model = PerformanceRNNModel(input_loader.vocab_size)
+
+    # # Simon & Oore (2018)
+    # inner_model = PerformanceRNNModel(
+    #     vocab_size=input_loader.vocab_size,
+    #     rnn_units=512,
+    #     dropout=0.0
+    # )
 
     # Vaswani 2017, (differs from Anna Huang 2018 baseline)
     inner_model = TransformerModel(
@@ -214,10 +220,22 @@ if __name__ == '__main__':
     model = PerformanceModel(
         inner_model,
         input_loader,
-        'outer_model',
+        'outer_model',  #todo don't allow 2 different model types wiith same name
         PROJECT_DIR,
         restore_checkpoint=True,
+
+        # # Simon & Oore (2018)
+        # learning_rate=1e-3,
+
+        # Vaswani et al. (2017)
+        learning_rate=None,
+        adam_beta1=0.9,
+        adam_beta2=0.98,
+        adam_eps=1e-9,
+        warmup_steps=4000,
+        embed_dimension=512
     )
+
     model.__call__(tf.zeros((64, 512), dtype=tf.int32))
     model.summary()
     model.train(1)

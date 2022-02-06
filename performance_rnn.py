@@ -43,8 +43,8 @@ class PerformanceRNNModel(tf.keras.Model):
     """
     def __init__(self,
                  vocab_size,
-                 rnn_units: int = 512,
-                 dropout: float = 0.0):
+                 rnn_units,
+                 dropout):
         super().__init__(self)
         self.vocab_size = vocab_size
 
