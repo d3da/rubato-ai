@@ -38,9 +38,13 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
                                             f'Got num_heads={num_heads} and embed_dim={embed_dim}')
 
-        self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
-        self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
-        self.V = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        self.Q = tf.keras.layers.Dense(embed_dim)
+        self.K = tf.keras.layers.Dense(embed_dim)
+        self.V = tf.keras.layers.Dense(embed_dim)
+
+        # self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        # self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        # self.V = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
 
         self.scale = 1 / tf.math.sqrt(tf.cast(self._d_k, tf.float32))
 
@@ -55,10 +59,14 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
         # print(f'inputs:{inputs.shape}')
 
+        q = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k)) * self.scale
+        k = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
+        v = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
+
         # q, k, v: (batch_size, seq_len, num_heads, d_k)
-        q = self.Q(inputs) * self.scale
-        k = self.K(inputs)
-        v = self.V(inputs)
+        # q = self.Q(inputs) * self.scale
+        # k = self.K(inputs)
+        # v = self.V(inputs)
 
         attn_score = tf.einsum('bihd,bjhd->bijh', q, k)  # Q x K.T
         # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
