@@ -192,10 +192,10 @@ if __name__ == '__main__':
     input_loader = PerformanceInputLoader(
         dataset_base,
         dataset_csv,
-        sequence_length=512,
-        min_stride=128,
-        max_stride=256,
-        batch_size=64,
+        sequence_length=2048,
+        min_stride=1024,
+        max_stride=2048,
+        batch_size=32,
         augmentation='aug-'
     )
 
@@ -206,15 +206,28 @@ if __name__ == '__main__':
     #     dropout=0.0
     # )
 
-    # Vaswani 2017, (differs from Anna Huang 2018 baseline)
+    # # Vaswani 2017
+    # inner_model = TransformerModel(
+    #     vocab_size=input_loader.vocab_size,
+    #     sequence_length=512,
+    #     num_layers=6,
+    #     drop_rate=0.1,
+    #     embed_dim=512,
+    #     attn_heads = 8,
+    #     ff_dim = 2048,
+    #     attn_dim=None
+    # )
+
+    # Anna Huang 2018 (Baseline transformer)
     inner_model = TransformerModel(
         vocab_size=input_loader.vocab_size,
-        sequence_length=512,
-        num_layers=6,  # Vaswani et al. (2017)
-        drop_rate=0.1,  # Vaswani et al. (2017)
-        embed_dim=512,  # Vaswani et al. (2017)
-        attn_heads = 8,  # Vaswani et al. (2017)
-        ff_dim = 2048,  # Vaswani et al. (2017)
+        sequence_length=2048,
+        num_layers=8,
+        drop_rate=0.2,
+        embed_dim=384,
+        attn_heads=8,
+        ff_dim=1024,
+        attn_dim=512
     )
 
     model = PerformanceModel(
@@ -235,9 +248,12 @@ if __name__ == '__main__':
         warmup_steps=4000,
         embed_dimension=512,
         label_smoothing=0.1
+
+        # Anna Huang et al. (2018)
+        # (same as Vaswani et al. (2017))
     )
 
-    model.__call__(tf.zeros((64, 512), dtype=tf.int32))
+    model.__call__(tf.zeros((32, 2048), dtype=tf.int32))
     model.summary()
     model.train(1)
     sys.exit()

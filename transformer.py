@@ -2,6 +2,8 @@
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
+from typing import Optional
+
 import numpy as np
 import tensorflow as tf
 
@@ -28,23 +30,36 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     Vaswani et al. (2017)
 
     https://nn.labml.ai/transformers/mha.html
+
+    Adjusted to allow for a query/key dimension (_d_k) that differs from the
+        value and output dimensions (embed_dim).
+    These are called (att) and (hs) respectively in Anna Huang et al. (2018)
     """
-    def __init__(self, num_heads, embed_dim):
+    def __init__(self, num_heads, embed_dim, attn_dim=None):
         super().__init__()
         self._num_heads = num_heads
         self._embed_dim = embed_dim
 
-        self._d_k = embed_dim // num_heads
         assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
                                             f'Got num_heads={num_heads} and embed_dim={embed_dim}')
 
-        self.Q = tf.keras.layers.Dense(embed_dim)
-        self.K = tf.keras.layers.Dense(embed_dim)
-        self.V = tf.keras.layers.Dense(embed_dim)
+        self._d_v = embed_dim // num_heads
 
-        # self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
-        # self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
-        # self.V = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        if attn_dim is None:
+            self._d_k = embed_dim // num_heads
+        else:
+            self._d_k = attn_dim // num_heads
+            assert attn_dim % num_heads == 0, ('{num_heads} must be a divisor of {attn_dim}\n'
+                                                f'Got num_heads={num_heads} and attn_dim={attn_dim}')
+
+
+        # self.Q = tf.keras.layers.Dense(embed_dim)
+        # self.K = tf.keras.layers.Dense(embed_dim)
+        # self.V = tf.keras.layers.Dense(embed_dim)
+
+        self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
+        self.V = tf.keras.layers.experimental.EinsumDense('bid,dhv->bihv', output_shape=[None, num_heads, self._d_v])
 
         self.scale = 1 / tf.math.sqrt(tf.cast(self._d_k, tf.float32))
 
@@ -55,18 +70,23 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     def call(self, inputs, mask):
 
         # inputs: (batch_size, seq_len, embed_dim)
-        batch_size, seq_len, embed_dim = inputs.shape[:]
+        batch_size, seq_len, embed_dim = inputs.shape
 
-        # print(f'inputs:{inputs.shape}')
+        # q = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
+        # k = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
+        # v = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
+        # # q, k, v: (batch_size, seq_len, num_heads, d_k)
 
-        q = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k)) * self.scale
-        k = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
-        v = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
+        q = self.Q(inputs)
+        k = self.K(inputs)
+        v = self.V(inputs)
+        # q, k: (batch_size, seq_len, num_heads, d_k)
+        # v: (batch_size, seq_len, num_heads, d_v)
 
-        # q, k, v: (batch_size, seq_len, num_heads, d_k)
-        # q = self.Q(inputs) * self.scale
-        # k = self.K(inputs)
-        # v = self.V(inputs)
+        # We scale the score before the multiplication by K.transpose because
+        #   the element-wise mult is faster with fewer elements
+        # So scaling here is faster when seq_len > d_k
+        q *= self.scale
 
         attn_score = tf.einsum('bihd,bjhd->bijh', q, k)  # Q x K.T
         # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
@@ -79,20 +99,20 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         attn_score = self.softmax(attn_score, mask=mask)  # softmax along seq_len_k
         # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
 
-        x = tf.einsum('bijh,bihd->bjhd', attn_score, v)  # multiplication by V
-        # x: (batch_size, seq_len, num_heads, d_k)
+        x = tf.einsum('bijh,bihv->bjhv', attn_score, v)  # multiplication by V
+        # x: (batch_size, seq_len, num_heads, d_v)
 
         x = tf.reshape(x, (-1, seq_len, embed_dim))
-        # x: (batch_size, seq_len, embed_dim)
+        # x: (batch_size, seq_len, embed_dim), with embed_dim == d_v * num_heads
 
         return self.O(x)  # (batch_size, seq_len, embed_dim)
 
 
 class TransformerBlock(tf.keras.layers.Layer):
-    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate):
+    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, attn_dim):
         super().__init__()
-        # self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads)
-        self.attn = MultiHeadAttention(num_heads, embed_dim)
+        # self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads, attn_dim//num_heads)
+        self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
@@ -155,18 +175,19 @@ class InputEmbedding(tf.keras.layers.Layer):
 
 class TransformerModel(tf.keras.layers.Layer):
     def __init__(self,
-                 vocab_size,
-                 sequence_length,
-                 num_layers,
-                 drop_rate,
-                 embed_dim,
-                 attn_heads,
-                 ff_dim):
+                 vocab_size: int,
+                 sequence_length: int,
+                 num_layers: int,
+                 drop_rate: float,
+                 embed_dim: int,
+                 attn_heads: int,
+                 ff_dim: int,
+                 attn_dim: Optional[int]):
         super().__init__()
 
         self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim)
         self.transformer_stack = tf.keras.Sequential([
-            TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate)
+            TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, attn_dim)
             for _ in range(num_layers)
         ])
         self.dense = tf.keras.layers.Dense(vocab_size)
