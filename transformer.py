@@ -109,10 +109,15 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 
 class TransformerBlock(tf.keras.layers.Layer):
+
+    USE_CUSTOM_MHA = True
+
     def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, attn_dim):
         super().__init__()
-        # self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads, attn_dim//num_heads)
-        self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim)
+        if self.USE_CUSTOM_MHA:
+            self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim)
+        else:
+            self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads, attn_dim//num_heads)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
@@ -128,8 +133,10 @@ class TransformerBlock(tf.keras.layers.Layer):
         causal_mask = causal_attention_mask(batch_size, seq_len, seq_len, tf.bool)
 
         # inputs: (batch_size, seq_len, embed_dim)
-        # attn_output = self.attn(inputs, inputs, attention_mask=causal_mask)
-        attn_output = self.attn(inputs, causal_mask)
+        if self.USE_CUSTOM_MHA:
+            attn_output = self.attn(inputs, causal_mask)
+        else:
+            attn_output = self.attn(inputs, inputs, attention_mask=causal_mask)
         attn_output = self.dropout1(attn_output)
         attn_output = self.layernorm1(inputs + attn_output)
         ffn_output = self.ffn(attn_output)
