@@ -196,8 +196,13 @@ class PerformanceInputLoader:
 
     @staticmethod
     def split_x_y(batch: tf.Tensor):
+        """
+        Note that only Y is converted to one_hot vectors,
+        this is because the Embedding layer applied to X takes in sparse categories
+        but the loss function needs one_hot encoded vectors to apply label smoothing
+        """
         x = batch[:, :-1]
-        y = batch[:, 1:]
+        y = tf.one_hot(batch[:, 1:], Event.vocab_size)
         return x, y
 
 
