@@ -28,7 +28,8 @@ class PerformanceModel(tf.keras.Model):
                  adam_beta2=None,
                  adam_eps=None,
                  warmup_steps=None,
-                 embed_dimension=None):
+                 embed_dimension=None,
+                 label_smoothing=0.0):
         super().__init__(name=model_name)
         self.input_loader = input_loader
         self.train_dir = train_dir
@@ -54,8 +55,8 @@ class PerformanceModel(tf.keras.Model):
             # or rather from some kinda hparam config even
         )
 
-        # Model returns probability logits, dataset returns category indices
-        self.loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+        self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
+                                                      label_smoothing=label_smoothing)
         self.compile(optimizer=self.optimizer, loss=self.loss,
                      metrics=['accuracy'])
 
@@ -214,7 +215,6 @@ if __name__ == '__main__':
         embed_dim=512,  # Vaswani et al. (2017)
         attn_heads = 8,  # Vaswani et al. (2017)
         ff_dim = 2048,  # Vaswani et al. (2017)
-        # TODO label smoothing = 0.1
     )
 
     model = PerformanceModel(
@@ -233,7 +233,8 @@ if __name__ == '__main__':
         adam_beta2=0.98,
         adam_eps=1e-9,
         warmup_steps=4000,
-        embed_dimension=512
+        embed_dimension=512,
+        label_smoothing=0.1
     )
 
     model.__call__(tf.zeros((64, 512), dtype=tf.int32))
