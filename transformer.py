@@ -207,18 +207,17 @@ class TransformerModel(tf.keras.layers.Layer):
         # x: (B, L, embed_dim)
         return self.dense(x)
 
-    @tf.function
     def generate_step(self, inputs, temperature):
         predicted_logits = self(inputs)
         predicted_logits = predicted_logits[:, -1, :]
         predicted_logits *= temperature
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
-        return tf.concat([inputs, predicted_categories], axis=1)
+        return predicted_categories
 
-    @tf.function
-    def sample_music(self, start_event_category=0, sample_length=64, num_seqs=2, temperature=1.0):
-        result = tf.constant([start_event_category]*num_seqs, shape=(num_seqs, 1), dtype=tf.int32)
-        temperature = tf.constant(temperature, dtype=tf.float32)
+    def sample_music(self, sample_length=2048, temperature=1.0):
+        primer = tf.constant([[0]]*1, shape=(1, 1), dtype=tf.int32)
+        result = primer[:]
         for _ in range(sample_length):
-            result = self.generate_step(result, temperature)
+            predicted_categories = self.generate_step(result, temperature)
+            result = tf.concat([result, predicted_categories], axis=-1)
         return result
