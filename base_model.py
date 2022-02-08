@@ -77,9 +77,8 @@ class PerformanceModel(tf.keras.Model):
         self.callbacks = [TrainCallback(train_dir=train_dir)]
         self.load_time = time.localtime()
 
-    def call(self, inputs, training=False, states=None, return_states=False):
-        # TODO handle stateful / stateless inner model
-        return self.inner_model(inputs, training, states, return_states)
+    def call(self, inputs, training=False):
+        return self.inner_model.call(inputs, training)
 
     def train(self, epochs: int) -> None:
         """
