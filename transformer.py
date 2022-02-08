@@ -50,12 +50,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         else:
             self._d_k = attn_dim // num_heads
             assert attn_dim % num_heads == 0, ('{num_heads} must be a divisor of {attn_dim}\n'
-                                                f'Got num_heads={num_heads} and attn_dim={attn_dim}')
-
-
-        # self.Q = tf.keras.layers.Dense(embed_dim)
-        # self.K = tf.keras.layers.Dense(embed_dim)
-        # self.V = tf.keras.layers.Dense(embed_dim)
+                                               f'Got num_heads={num_heads} and attn_dim={attn_dim}')
 
         self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
         self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
@@ -71,11 +66,6 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
         # inputs: (batch_size, seq_len, embed_dim)
         batch_size, seq_len, embed_dim = inputs.shape
-
-        # q = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
-        # k = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
-        # v = tf.reshape(self.Q(inputs), (-1, seq_len, self._num_heads, self._d_k))
-        # # q, k, v: (batch_size, seq_len, num_heads, d_k)
 
         q = self.Q(inputs)
         k = self.K(inputs)
@@ -200,8 +190,11 @@ class TransformerModel(tf.keras.layers.Layer):
         self.dense = tf.keras.layers.Dense(vocab_size)
 
     def call(self, inputs, *args, **kwargs):
+        # inputs: (B, L)
         x = self.emb(inputs)
+        # x: (B, L, embed_dim)
         x = self.transformer_stack(x)
+        # x: (B, L, embed_dim)
         return self.dense(x)
 
     @tf.function
