@@ -118,11 +118,14 @@ class TransformerBlock(tf.keras.layers.Layer):
         self.dropout1 = tf.keras.layers.Dropout(drop_rate)
         self.dropout2 = tf.keras.layers.Dropout(drop_rate)
 
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
         input_shape = tf.shape(inputs)
         batch_size = input_shape[0]
         seq_len = input_shape[1]
         causal_mask = causal_attention_mask(batch_size, seq_len, seq_len, tf.bool)
+
+        if mask is not None:
+            causal_mask = tf.cast(tf.cast(causal_mask, tf.int32) * tf.cast(mask, tf.int32), tf.bool)
 
         # inputs: (batch_size, seq_len, embed_dim)
         if self.USE_CUSTOM_MHA:
@@ -134,6 +137,9 @@ class TransformerBlock(tf.keras.layers.Layer):
         ffn_output = self.ffn(attn_output)
         ffn_output = self.dropout2(ffn_output)
         return self.layernorm2(attn_output + ffn_output)
+
+    def compute_mask(self, inputs, mask=None):
+        return mask
 
 
 class InputEmbedding(tf.keras.layers.Layer):
@@ -170,6 +176,9 @@ class InputEmbedding(tf.keras.layers.Layer):
         pos_encoding = angle_rads[np.newaxis, ...]
 
         return tf.cast(pos_encoding, dtype=tf.float32)
+
+    def compute_mask(self, inputs, mask=None):
+        return self.token_emb.compute_mask(inputs, mask)
 
 
 class TransformerModel(tf.keras.layers.Layer):
