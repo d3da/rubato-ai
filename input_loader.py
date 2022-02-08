@@ -213,6 +213,19 @@ def check_dataset(base_path: str, csv_path: str):
             'at https://magenta.tensorflow.org/datasets/maestro#v300')
 
 
+def pad_truncate_sequence(input, length, pad_token=-1):
+    """
+    Left-pad a sequence with {pad_token},
+    then truncate from the left to obtain a padded sequence
+    of {length} tokens.
+    """
+    b, s = input.shape
+    padding = tf.zeros((b, max(0, length-s)), dtype=tf.int32) + pad_token
+    input_padded = tf.concat([padding, input], axis=-1)
+    b, padded_len = input_padded.shape
+    return input_padded[:, padded_len-length:]
+
+
 if __name__ == '__main__':
     base_path = 'data/maestro-v3.0.0'
     csv_path = os.path.join(base_path, 'maestro-v3.0.0.csv')
