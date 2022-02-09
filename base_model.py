@@ -6,6 +6,7 @@ import os
 import sys
 import time
 
+import numpy as np
 import tensorflow as tf
 
 from input_loader import PerformanceInputLoader, sequence_to_midi
@@ -91,8 +92,7 @@ class PerformanceModel(tf.keras.Model):
         """
         for e in range(epochs):
             self.fit(self.input_loader.dataset, epochs=1,
-                     callbacks=self.callbacks,
-                     validation_data=self.input_loader.test_dataset)
+                     callbacks=self.callbacks)
             print(f'Finished training epoch {e+1}/{epochs}.')
 
     def sample_music(self, *args, **kwargs):
@@ -113,55 +113,62 @@ class TrainCallback(tf.keras.callbacks.Callback):
     def __init__(self,
                  train_dir,
                  update_freq: int = 25,
-                 save_midi_freq: int = 50,
-                 save_checkpoint_freq: int = 100,
-                 write_steps_per_second: bool = True):
+                 save_midi_freq: int = 250,
+                 save_checkpoint_freq: int = 250,
+                 validate_freq: int = 1000,
+                 validate_batches: int = 25):
         super().__init__()
 
-        self.train_dir = train_dir
-        self.sample_dir = os.path.join(train_dir, 'train_samples')
-        if not os.path.exists(self.sample_dir):
-            os.mkdir(self.sample_dir)
+        self._train_dir = train_dir
+        self._sample_dir = os.path.join(train_dir, 'train_samples')
+        if not os.path.exists(self._sample_dir):
+            os.mkdir(self._sample_dir)
 
-        self.update_freq = update_freq
-        self.save_midi_freq = save_midi_freq
-        self.save_checkpoint_freq = save_checkpoint_freq
-        self.write_steps_per_second = write_steps_per_second
+        self._update_freq = update_freq
+        self._save_midi_freq = save_midi_freq
+        self._save_checkpoint_freq = save_checkpoint_freq
+
+        self._validate_freq = validate_freq
+        self._validate_batches = validate_batches
 
         self._batch_start_time = 0.
-        self.writer = None
+        self._writer = None
 
     def on_train_begin(self, logs=None):
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)
         log_dir = str(os.path.join('logs', self.model.name, run_time))
-        self.writer = tf.summary.create_file_writer(log_dir)
+        self._writer = tf.summary.create_file_writer(log_dir)
 
     def on_train_end(self, logs=None):
-        self.writer.close()
+        self._writer.close()
 
     def on_batch_begin(self, batch, logs=None):
-        if self.write_steps_per_second:
-            self._batch_start_time = time.time()
+        self._batch_start_time = time.time()
 
     def on_batch_end(self, batch, logs=None):
         step = self.model.batch_ctr.value()
-        if step % self.update_freq == 0:
-            with self.writer.as_default():
-                if self.write_steps_per_second:
-                    _batch_time = time.time() - self._batch_start_time
-                    tf.summary.scalar('batch_time', _batch_time, step=step)
+        if logs is None:
+            logs = {}
+
+        if step % self._validate_freq == 0:
+            logs = self._run_validation(self._validate_batches, logs=logs)
+
+        if step % self._update_freq == 0:
+            with self._writer.as_default():
+                _batch_time = time.time() - self._batch_start_time
+                tf.summary.scalar('batch_time', _batch_time, step=step)
                 for key, value in logs.items():
                     tf.summary.scalar(key, value, step=step)
 
-        if step % self.save_midi_freq == 0:
+        if step % self._save_midi_freq == 0:
             # Generate sample
             music = self.model.sample_music()
             for i, seq in enumerate(music):
                 midi = sequence_to_midi(seq)
-                midi_path = os.path.join(os.path.join(self.sample_dir, f'{self.model.name}_{step}_{i}.midi'))
+                midi_path = os.path.join(os.path.join(self._sample_dir, f'{self.model.name}_{step}_{i}.midi'))
                 midi.save(midi_path)
 
-        if step % self.save_checkpoint_freq == 0:
+        if step % self._save_checkpoint_freq == 0:
             self.model.checkpoint_mgr.save()
 
         self.model.batch_ctr.assign_add(1)
@@ -174,14 +181,19 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
         self.model.checkpoint_mgr.save()
 
-        if not logs:
-            return
-
-        val_logs = {k: v for k, v in logs.items() if k.startswith('val_')}
-        if val_logs:
-            with self.writer.as_default():
-                for name, value in val_logs.items():
-                    tf.summary.scalar(name, value, step=tot_epoch)
+    def _run_validation(self, num_batches, logs=None):
+        if logs is None:
+            logs = {}
+        batch_losses = []
+        for i, (x, y) in enumerate(self.model.input_loader.test_dataset):
+            y_hat = self.model.__call__(x, training=False)
+            loss = self.model.loss.__call__(y, y_hat)
+            batch_losses.append(float(loss))
+            if i >= num_batches:
+                break
+        val_loss = np.average(batch_losses)
+        logs['val_loss'] = val_loss
+        return logs
 
 
 if __name__ == '__main__':
