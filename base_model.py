@@ -78,7 +78,7 @@ class PerformanceModel(tf.keras.Model):
         self.load_time = time.localtime()
 
     def call(self, inputs, training=False):
-        return self.inner_model.call(inputs, training)
+        return self.inner_model.__call__(inputs, training)
 
     def train(self, epochs: int) -> None:
         """
