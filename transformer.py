@@ -188,6 +188,7 @@ class TransformerModel(tf.keras.layers.Layer):
                  ff_dim: int,
                  attn_dim: Optional[int]):
         super().__init__()
+        self._sequence_length = sequence_length
 
         self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim)
         self.transformer_stack = tf.keras.Sequential([
@@ -205,7 +206,8 @@ class TransformerModel(tf.keras.layers.Layer):
         return self.dense(x, training=training)
 
     def generate_step(self, inputs, temperature):
-        predicted_logits = self(inputs, training=False)
+        inputs_truncated = inputs[:, max(0, inputs.shape[1]-self._sequence_length):]
+        predicted_logits = self(inputs_truncated, training=False)
         predicted_logits = predicted_logits[:, -1, :]
         predicted_logits *= temperature
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
