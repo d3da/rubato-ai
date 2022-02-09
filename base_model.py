@@ -194,7 +194,7 @@ if __name__ == '__main__':
         sequence_length=2048,
         min_stride=1024,
         max_stride=2048,
-        batch_size=32,
+        batch_size=1,
         augmentation='aug-'
     )
 
@@ -217,7 +217,7 @@ if __name__ == '__main__':
     #     attn_dim=None
     # )
 
-    # Anna Huang 2018 (Baseline transformer)
+    # Huang 2018 (Baseline transformer)
     inner_model = TransformerModel(
         vocab_size=input_loader.vocab_size,
         sequence_length=2048,
@@ -245,14 +245,14 @@ if __name__ == '__main__':
         adam_beta2=0.98,
         adam_eps=1e-9,
         warmup_steps=4000,
-        embed_dimension=512,
-        label_smoothing=0.1
+        # embed_dimension=512,
+        label_smoothing=0.1,
 
-        # Anna Huang et al. (2018)
-        # (same as Vaswani et al. (2017))
+        # Huang et al. (2018)
+        embed_dimension=384,
     )
 
-    model.__call__(tf.zeros((32, 2048), dtype=tf.int32))
+    model.__call__(tf.zeros((1, 2048), dtype=tf.int32))
     model.summary()
     model.train(1)
     sys.exit()
