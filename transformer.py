@@ -139,6 +139,8 @@ class InputEmbedding(tf.keras.layers.Layer):
     Learned token embeddings are added to learned positional embeddings.
 
     from https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder
+
+    TODO split into distinct input embedding and positional encoding layers
     """
     def __init__(self, maxlen, vocab_size, embed_dim):
         super().__init__()
@@ -148,16 +150,21 @@ class InputEmbedding(tf.keras.layers.Layer):
 
     def call(self, x, training=False):
         seq_len = tf.shape(x)[-1]
+        # input embedding part
         x = self.token_emb(x, training=training)
+        x *= tf.math.sqrt(tf.cast(self.embed_dim, tf.float32))
+        # positional encoding part
         return x + self.pos_enc[:, :seq_len, :]
 
     @staticmethod
     def get_angles(pos, i, d_model):
+        # TODO tensorflow version
         angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
         return pos * angle_rates
 
     @staticmethod
     def positional_encoding(position, d_model):
+        # TODO tensorflow version
         angle_rads = InputEmbedding.get_angles(
             np.arange(position)[:, np.newaxis],
             np.arange(d_model)[np.newaxis, :],
