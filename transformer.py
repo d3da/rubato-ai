@@ -7,8 +7,6 @@ from typing import Optional
 import numpy as np
 import tensorflow as tf
 
-from input_loader import pad_truncate_sequence
-
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     """
@@ -118,14 +116,11 @@ class TransformerBlock(tf.keras.layers.Layer):
         self.dropout1 = tf.keras.layers.Dropout(drop_rate)
         self.dropout2 = tf.keras.layers.Dropout(drop_rate)
 
-    def call(self, inputs, mask=None):
+    def call(self, inputs):
         input_shape = tf.shape(inputs)
         batch_size = input_shape[0]
         seq_len = input_shape[1]
         causal_mask = causal_attention_mask(batch_size, seq_len, seq_len, tf.bool)
-
-        if mask is not None:
-            causal_mask = tf.cast(tf.cast(causal_mask, tf.int32) * tf.cast(mask, tf.int32), tf.bool)
 
         # inputs: (batch_size, seq_len, embed_dim)
         if self.USE_CUSTOM_MHA:
@@ -138,9 +133,6 @@ class TransformerBlock(tf.keras.layers.Layer):
         ffn_output = self.dropout2(ffn_output)
         return self.layernorm2(attn_output + ffn_output)
 
-    def compute_mask(self, inputs, mask=None):
-        return mask
-
 
 class InputEmbedding(tf.keras.layers.Layer):
     """
@@ -148,9 +140,9 @@ class InputEmbedding(tf.keras.layers.Layer):
 
     from https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder
     """
-    def __init__(self, maxlen, vocab_size, embed_dim, mask_zero):
+    def __init__(self, maxlen, vocab_size, embed_dim):
         super().__init__()
-        self.token_emb = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embed_dim, mask_zero=mask_zero)
+        self.token_emb = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embed_dim)
         self.embed_dim = embed_dim
         self.pos_enc = InputEmbedding.positional_encoding(maxlen, embed_dim)
 
@@ -177,14 +169,8 @@ class InputEmbedding(tf.keras.layers.Layer):
 
         return tf.cast(pos_encoding, dtype=tf.float32)
 
-    def compute_mask(self, inputs, mask=None):
-        return self.token_emb.compute_mask(inputs, mask)
-
 
 class TransformerModel(tf.keras.layers.Layer):
-
-    PAD_TOKEN = -1
-
     def __init__(self,
                  vocab_size: int,
                  sequence_length: int,
@@ -196,10 +182,7 @@ class TransformerModel(tf.keras.layers.Layer):
                  attn_dim: Optional[int]):
         super().__init__()
 
-        self.sequence_length = sequence_length
-
-        # We mask zero in the embedding layer, for sequence generation
-        self.emb = InputEmbedding(sequence_length, vocab_size+1, embed_dim, mask_zero=True)
+        self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim)
         self.transformer_stack = tf.keras.Sequential([
             TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, attn_dim)
             for _ in range(num_layers)
@@ -208,9 +191,7 @@ class TransformerModel(tf.keras.layers.Layer):
 
     def call(self, inputs, *args, **kwargs):
         # inputs: (B, L)
-        x_padded = pad_truncate_sequence(inputs, self.sequence_length, self.PAD_TOKEN) + 1
-
-        x = self.emb(x_padded)
+        x = self.emb(inputs)
         # x: (B, L, embed_dim)
         x = self.transformer_stack(x)
         # x: (B, L, embed_dim)

@@ -107,8 +107,8 @@ class PerformanceInputLoader:
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
                 )).shuffle(8092)  # (s+1)
                   .prefetch(tf.data.AUTOTUNE)
-                  .batch(batch_size, drop_remainder=True)  # (b, s+1)
-                  .map(PerformanceInputLoader.split_x_y)  # (b, Tuple(s, s))
+                  .batch(batch_size, drop_remainder=False)  # (<=b, s+1)
+                  .map(PerformanceInputLoader.split_x_y)  # (<=b, Tuple(s, s))
                   .prefetch(tf.data.AUTOTUNE))
 
         # TODO we really don't need 8 processes to generate the test set
@@ -211,22 +211,6 @@ def check_dataset(base_path: str, csv_path: str):
         raise FileNotFoundError(
             'You can obtain a copy of the MAESTRO dataset'
             'at https://magenta.tensorflow.org/datasets/maestro#v300')
-
-
-def pad_truncate_sequence(input, length, pad_token=-1):
-    """
-    Left-pad a sequence with {pad_token},
-    then truncate from the left to obtain a padded sequence
-    of {length} tokens.
-
-    Note: this does not work for inputs with shape (None, sequence_length)
-          (i.e.) batches generated with drop_remainder=False from the dataset.
-    """
-    b, s = input.shape
-    padding = tf.zeros((b, max(0, length-s)), dtype=tf.int32) + pad_token
-    input_padded = tf.concat([padding, input], axis=-1)
-    b, padded_len = input_padded.shape
-    return input_padded[:, padded_len-length:]
 
 
 if __name__ == '__main__':
