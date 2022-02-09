@@ -33,24 +33,20 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
     Adjusted to allow for a query/key dimension (_d_k) that differs from the
         value and output dimensions (embed_dim).
-    These are called (att) and (hs) respectively in Anna Huang et al. (2018)
+    These are called (att) and (hs) respectively in Huang et al. (2018)
     """
-    def __init__(self, num_heads, embed_dim, attn_dim=None):
+    def __init__(self, num_heads, embed_dim, attn_dim):
         super().__init__()
         self._num_heads = num_heads
         self._embed_dim = embed_dim
 
         assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
                                             f'Got num_heads={num_heads} and embed_dim={embed_dim}')
+        assert attn_dim % num_heads == 0, ('{num_heads} must be a divisor of {attn_dim}\n'
+                                           f'Got num_heads={num_heads} and attn_dim={attn_dim}')
 
         self._d_v = embed_dim // num_heads
-
-        if attn_dim is None:
-            self._d_k = embed_dim // num_heads
-        else:
-            self._d_k = attn_dim // num_heads
-            assert attn_dim % num_heads == 0, ('{num_heads} must be a divisor of {attn_dim}\n'
-                                               f'Got num_heads={num_heads} and attn_dim={attn_dim}')
+        self._d_k = attn_dim // num_heads
 
         self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
         self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
@@ -102,8 +98,10 @@ class TransformerBlock(tf.keras.layers.Layer):
 
     USE_CUSTOM_MHA = True
 
-    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, attn_dim):
+    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, attn_dim=None):
         super().__init__()
+        if attn_dim is None:
+            attn_dim = embed_dim
         if self.USE_CUSTOM_MHA:
             self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim)
         else:
