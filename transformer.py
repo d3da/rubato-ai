@@ -62,14 +62,14 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
         self.O = tf.keras.layers.Dense(embed_dim)
 
-    def call(self, inputs, mask):
+    def call(self, inputs, mask, training=False):
 
         # inputs: (batch_size, seq_len, embed_dim)
         batch_size, seq_len, embed_dim = inputs.shape
 
-        q = self.Q(inputs)
-        k = self.K(inputs)
-        v = self.V(inputs)
+        q = self.Q(inputs, training=training)
+        k = self.K(inputs, training=training)
+        v = self.V(inputs, training=training)
         # q, k: (batch_size, seq_len, num_heads, d_k)
         # v: (batch_size, seq_len, num_heads, d_v)
 
@@ -86,7 +86,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
             mask = tf.expand_dims(mask, axis=-1)
         # mask: (batch_size, seq_len_q, seq_len_k, 1)
 
-        attn_score = self.softmax(attn_score, mask=mask)  # softmax along seq_len_k
+        attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along seq_len_k
         # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
 
         x = tf.einsum('bijh,bihv->bjhv', attn_score, v)  # multiplication by V
@@ -95,7 +95,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         x = tf.reshape(x, (-1, seq_len, embed_dim))
         # x: (batch_size, seq_len, embed_dim), with embed_dim == d_v * num_heads
 
-        return self.O(x)  # (batch_size, seq_len, embed_dim)
+        return self.O(x, training=training)  # (batch_size, seq_len, embed_dim)
 
 
 class TransformerBlock(tf.keras.layers.Layer):
@@ -116,7 +116,7 @@ class TransformerBlock(tf.keras.layers.Layer):
         self.dropout1 = tf.keras.layers.Dropout(drop_rate)
         self.dropout2 = tf.keras.layers.Dropout(drop_rate)
 
-    def call(self, inputs):
+    def call(self, inputs, training=False):
         input_shape = tf.shape(inputs)
         batch_size = input_shape[0]
         seq_len = input_shape[1]
@@ -124,14 +124,14 @@ class TransformerBlock(tf.keras.layers.Layer):
 
         # inputs: (batch_size, seq_len, embed_dim)
         if self.USE_CUSTOM_MHA:
-            attn_output = self.attn(inputs, causal_mask)
+            attn_output = self.attn(inputs, causal_mask, training=training)
         else:
-            attn_output = self.attn(inputs, inputs, attention_mask=causal_mask)
-        attn_output = self.dropout1(attn_output)
-        attn_output = self.layernorm1(inputs + attn_output)
-        ffn_output = self.ffn(attn_output)
-        ffn_output = self.dropout2(ffn_output)
-        return self.layernorm2(attn_output + ffn_output)
+            attn_output = self.attn(inputs, inputs, attention_mask=causal_mask, training=training)
+        attn_output = self.dropout1(attn_output, training=training)
+        attn_output = self.layernorm1(inputs + attn_output, training=training)
+        ffn_output = self.ffn(attn_output, training=training)
+        ffn_output = self.dropout2(ffn_output, training=training)
+        return self.layernorm2(attn_output + ffn_output, training=training)
 
 
 class InputEmbedding(tf.keras.layers.Layer):
@@ -146,9 +146,9 @@ class InputEmbedding(tf.keras.layers.Layer):
         self.embed_dim = embed_dim
         self.pos_enc = InputEmbedding.positional_encoding(maxlen, embed_dim)
 
-    def call(self, x):
+    def call(self, x, training=False):
         seq_len = tf.shape(x)[-1]
-        x = self.token_emb(x)
+        x = self.token_emb(x, training=training)
         return x + self.pos_enc[:, :seq_len, :]
 
     @staticmethod
@@ -189,16 +189,16 @@ class TransformerModel(tf.keras.layers.Layer):
         ])
         self.dense = tf.keras.layers.Dense(vocab_size)
 
-    def call(self, inputs, *args, **kwargs):
+    def call(self, inputs, training=False):
         # inputs: (B, L)
-        x = self.emb(inputs)
+        x = self.emb(inputs, training=training)
         # x: (B, L, embed_dim)
-        x = self.transformer_stack(x)
+        x = self.transformer_stack(x, training=training)
         # x: (B, L, embed_dim)
-        return self.dense(x)
+        return self.dense(x, training=training)
 
     def generate_step(self, inputs, temperature):
-        predicted_logits = self(inputs)
+        predicted_logits = self(inputs, training=False)
         predicted_logits = predicted_logits[:, -1, :]
         predicted_logits *= temperature
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
