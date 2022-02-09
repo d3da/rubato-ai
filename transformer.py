@@ -213,7 +213,7 @@ class TransformerModel(tf.keras.layers.Layer):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories
 
-    def sample_music(self, sample_length=2048, temperature=1.0):
+    def sample_music(self, sample_length=512, temperature=1.0):
         primer = tf.constant([[0]]*1, shape=(1, 1), dtype=tf.int32)
         result = primer[:]
         for _ in range(sample_length):
