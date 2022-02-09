@@ -211,20 +211,10 @@ class TransformerModel(tf.keras.layers.Layer):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories
 
-    def sample_music(self, sample_length=8, temperature=1.0):
+    def sample_music(self, sample_length=2048, temperature=1.0):
         primer = tf.constant([[0]]*1, shape=(1, 1), dtype=tf.int32)
         result = primer[:]
         for _ in range(sample_length):
             predicted_categories = self.generate_step(result, temperature)
             result = tf.concat([result, predicted_categories], axis=-1)
         return result
-    
-    def sample_bach_wtc1_no9(self, sample_length=1024, temperature=1.0):
-        primer = tf.constant([[380, 258, 393, 64, 257, 390, 52, 305, 396, 68, 282, 192, 265, 398, 71, 294, 394, 56, 258, 396, 76, 260, 199, 259, 196, 286, 397, 75, 261, 204, 286, 398, 76, 263, 203, 288, 392, 57, 395, 75, 257, 204, 262, 203, 257, 396, 73, 262, 201, 257, 184, 261, 396, 75, 261, 399, 73, 262, 203, 263, 398, 71, 258, 201, 288, 398, 73, 273, 199, 275, 397, 76, 260, 201, 288, 393, 56, 264, 185, 281, 393, 54, 260, 184, 287, 396, 73, 204, 392, 56, 182, 261, 201, 258, 396, 71, 262, 199, 260, 398, 73, 263, 398, 71, 201, 263, 199, 259, 396, 69, 289, 397, 71, 259, 197, 292, 396, 76, 267, 199, 279, 391, 57, 257, 184, 293, 392, 56]],
-                             shape=(1, 128), dtype=tf.int32)
-        result = primer[:]
-        for _ in range(sample_length):
-            predicted_categories = self.generate_step(result, temperature)
-            result = tf.concat([result, predicted_categories], axis=-1)
-        return result
-

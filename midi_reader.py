@@ -2,7 +2,6 @@
 """
 https://arxiv.org/abs/1808.03715v1
 """
-import os
 from typing import List, Iterable
 
 import pdb
@@ -230,19 +229,7 @@ def main():
             port.send(msg)
 
 
-def get_primer(filename, length):
-    filename = "2013/ORIG-MIDI_02_7_6_13_Group__MID--AUDIO_08_R1_2013_wav--1.midi"
-    length = 128
-
-    path = os.path.join('data/maestro-v3.0.0', filename)
-    midi = mido.MidiFile(path)
-
-    import numpy as np
-    return np.array(midi_to_events(midi))[:length]
-
-
 if __name__ == '__main__':
-    print([x for x in map(lambda x: x.category, get_primer(None, None))])
-    # main()
+    main()
 
 
