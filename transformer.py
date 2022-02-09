@@ -138,13 +138,14 @@ class InputEmbedding(tf.keras.layers.Layer):
 
     from https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder
 
-    TODO split into distinct input embedding and positional encoding layers
+    TODO learned/linear embeddings with hparams
     """
-    def __init__(self, maxlen, vocab_size, embed_dim):
+    def __init__(self, maxlen, vocab_size, embed_dim, drop_rate):
         super().__init__()
         self.token_emb = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embed_dim)
         self.embed_dim = embed_dim
         self.pos_enc = InputEmbedding.positional_encoding(maxlen, embed_dim)
+        self.dropout = tf.keras.layers.Dropout(drop_rate)
 
     def call(self, x, training=False):
         seq_len = tf.shape(x)[-1]
@@ -152,7 +153,8 @@ class InputEmbedding(tf.keras.layers.Layer):
         x = self.token_emb(x, training=training)
         x *= tf.math.sqrt(tf.cast(self.embed_dim, tf.float32))
         # positional encoding part
-        return x + self.pos_enc[:, :seq_len, :]
+        x += self.pos_enc[:, :seq_len, :]
+        return self.dropout(x, training=training)
 
     @staticmethod
     def get_angles(pos, i, d_model):
@@ -188,7 +190,7 @@ class TransformerModel(tf.keras.layers.Layer):
         super().__init__()
         self._sequence_length = sequence_length
 
-        self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim)
+        self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim, drop_rate)
         self.transformer_stack = tf.keras.Sequential([
             TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, attn_dim)
             for _ in range(num_layers)
