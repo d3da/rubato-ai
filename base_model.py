@@ -73,7 +73,7 @@ class PerformanceModel(tf.keras.Model):
             if self.batch_ctr.value() != 0:
                 print(f'Restored checkpoint (batch {self.batch_ctr.value()}, epoch {self.epoch_ctr.value()})')
             else:
-                print('Initialized model')
+                print('Initialized model (we\'re at batch zero)')
 
         self.callbacks = [TrainCallback(train_dir=train_dir)]
         self.load_time = time.localtime()
@@ -159,6 +159,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
                 tf.summary.scalar('batch_time', _batch_time, step=step)
                 for key, value in logs.items():
                     tf.summary.scalar(key, value, step=step)
+            self.model.reset_metrics()
 
         if step % self._save_midi_freq == 0:
             # Generate sample
