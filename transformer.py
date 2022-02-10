@@ -35,10 +35,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
     """
-    def __init__(self, num_heads, embed_dim, attn_dim):
+    def __init__(self, num_heads, embed_dim, attn_dim, sequence_length):
         super().__init__()
         self._num_heads = num_heads
         self._embed_dim = embed_dim
+        self._sequence_length = sequence_length
 
         assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
                                             f'Got num_heads={num_heads} and embed_dim={embed_dim}')
@@ -48,62 +49,58 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self._d_v = embed_dim // num_heads
         self._d_k = attn_dim // num_heads
 
-        self.Q = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
-        self.K = tf.keras.layers.experimental.EinsumDense('bid,dhk->bihk', output_shape=[None, num_heads, self._d_k])
-        self.V = tf.keras.layers.experimental.EinsumDense('bid,dhv->bihv', output_shape=[None, num_heads, self._d_v])
+        self.Q = tf.keras.layers.experimental.EinsumDense('btd,dhk->bthk', output_shape=[sequence_length, num_heads, self._d_k])
+        self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[sequence_length, num_heads, self._d_k])
+        self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[sequence_length, num_heads, self._d_v])
 
         self.scale = 1 / tf.math.sqrt(tf.cast(self._d_k, tf.float32))
 
         self.softmax = tf.keras.layers.Softmax(axis=1)
 
-        self.O = tf.keras.layers.Dense(embed_dim)
+        self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[sequence_length, embed_dim])
 
     def call(self, inputs, mask, training=False):
 
-        # inputs: (batch_size, seq_len, embed_dim)
+        # inputs: (B, S, d_model)
         batch_size, seq_len, embed_dim = inputs.shape
 
-        q = self.Q(inputs, training=training)
-        k = self.K(inputs, training=training)
-        v = self.V(inputs, training=training)
-        # q, k: (batch_size, seq_len, num_heads, d_k)
-        # v: (batch_size, seq_len, num_heads, d_v)
+        q = self.Q(inputs, training=training)  # (B, T, h, d_k)
+        k = self.K(inputs, training=training)  # (B, S, h, d_k)
+        v = self.V(inputs, training=training)  # (B, S, h, d_v)
 
         # We scale the score before the multiplication by K.transpose because
         #   the element-wise mult is faster with fewer elements
         # So scaling here is faster when seq_len > d_k
         q *= self.scale
 
-        attn_score = tf.einsum('bihd,bjhd->bijh', q, k)  # Q x K.T
-        # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
+        attn_score = tf.einsum('bthd,bshd->btsh', q, k)  # Q x K.T
+        # attn_score: (B, T, S, h)
 
-        # mask: (batch_size, seq_len_q, seq_len_k)
+        # mask: Optional[(B, T, S)]
         if mask is not None:
             mask = tf.expand_dims(mask, axis=-1)
-        # mask: (batch_size, seq_len_q, seq_len_k, 1)
+        # mask: Optional[(B, T, S, 1)]
 
-        attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along seq_len_k
-        # attn_score: (batch_size, seq_len_q, seq_len_k, num_heads)
+        attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along axis S
+        # attn_score: (B, T, S, h)
 
-        x = tf.einsum('bijh,bihv->bjhv', attn_score, v)  # multiplication by V
-        # x: (batch_size, seq_len, num_heads, d_v)
+        x = tf.einsum('btsh,bshv->bthv', attn_score, v)  # multiplication by V
+        # x: (B, T, h, d_v)
 
-        x = tf.reshape(x, (-1, seq_len, embed_dim))
-        # x: (batch_size, seq_len, embed_dim), with embed_dim == d_v * num_heads
-
-        return self.O(x, training=training)  # (batch_size, seq_len, embed_dim)
+        return self.O(x, training=training)  # (B, T, d_model)
 
 
 class TransformerBlock(tf.keras.layers.Layer):
 
+    # USE_CUSTOM_MHA = False
     USE_CUSTOM_MHA = True
 
-    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, attn_dim=None):
+    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, sequence_length, attn_dim=None):
         super().__init__()
         if attn_dim is None:
             attn_dim = embed_dim
         if self.USE_CUSTOM_MHA:
-            self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim)
+            self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
         else:
             self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads, attn_dim//num_heads)
         self.ffn = tf.keras.Sequential([
@@ -206,7 +203,7 @@ class TransformerModel(tf.keras.layers.Layer):
         self.inp_dropout = tf.keras.layers.Dropout(drop_rate)
 
         self.transformer_stack = tf.keras.Sequential([
-            TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, attn_dim)
+            TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, sequence_length, attn_dim)
             for _ in range(num_layers)
         ])
         self.out_emb = self.inp_emb  # last projection shares weights with input embedding
