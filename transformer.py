@@ -53,17 +53,14 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[sequence_length, num_heads, self._d_k])
         self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[sequence_length, num_heads, self._d_v])
 
-        self.scale = 1 / tf.math.sqrt(tf.cast(self._d_k, tf.float32))
+        self.scale = 1.0 / tf.math.sqrt(float(self._d_k))
 
-        self.softmax = tf.keras.layers.Softmax(axis=1)
+        self.softmax = tf.keras.layers.Softmax(axis=3)
 
         self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[sequence_length, embed_dim])
 
     def call(self, inputs, mask, training=False):
-
         # inputs: (B, S, d_model)
-        batch_size, seq_len, embed_dim = inputs.shape
-
         q = self.Q(inputs, training=training)  # (B, T, h, d_k)
         k = self.K(inputs, training=training)  # (B, S, h, d_k)
         v = self.V(inputs, training=training)  # (B, S, h, d_v)
@@ -73,19 +70,14 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         # So scaling here is faster when seq_len > d_k
         q *= self.scale
 
-        attn_score = tf.einsum('bthd,bshd->btsh', q, k)  # Q x K.T
-        # attn_score: (B, T, S, h)
+        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
 
-        # mask: Optional[(B, T, S)]
         if mask is not None:
-            mask = tf.expand_dims(mask, axis=-1)
-        # mask: Optional[(B, T, S, 1)]
+            mask = tf.expand_dims(mask, axis=-3)  # Expand (B, T, S) to (B, h, T, S)
 
         attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along axis S
-        # attn_score: (B, T, S, h)
 
-        x = tf.einsum('btsh,bshv->bthv', attn_score, v)  # multiplication by V
-        # x: (B, T, h, d_v)
+        x = tf.einsum('bhts,bshv->bthv', attn_score, v)  # (B, T, h, d_v)
 
         return self.O(x, training=training)  # (B, T, d_model)
 
