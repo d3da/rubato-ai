@@ -84,17 +84,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 class TransformerBlock(tf.keras.layers.Layer):
 
-    # USE_CUSTOM_MHA = False
-    USE_CUSTOM_MHA = True
-
     def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, sequence_length, attn_dim=None):
         super().__init__()
         if attn_dim is None:
             attn_dim = embed_dim
-        if self.USE_CUSTOM_MHA:
-            self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
-        else:
-            self.attn = tf.keras.layers.MultiHeadAttention(num_heads, embed_dim//num_heads, attn_dim//num_heads)
+        self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
@@ -110,10 +104,7 @@ class TransformerBlock(tf.keras.layers.Layer):
         causal_mask = causal_attention_mask(batch_size, seq_len, seq_len, tf.bool)
 
         # inputs: (batch_size, seq_len, embed_dim)
-        if self.USE_CUSTOM_MHA:
-            attn_output = self.attn(inputs, causal_mask, training=training)
-        else:
-            attn_output = self.attn(inputs, inputs, attention_mask=causal_mask, training=training)
+        attn_output = self.attn(inputs, causal_mask, training=training)
         attn_output = self.dropout1(attn_output, training=training)
         attn_output = self.layernorm1(inputs + attn_output, training=training)
         ffn_output = self.ffn(attn_output, training=training)
@@ -166,7 +157,7 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
         super().__init__()
         self.emb_matrix = self.add_weight(name='shared_embedding', shape=(token_dim, model_dim), trainable=True)
 
-    def call(self, inputs, encode=True, training=False):
+    def call(self, inputs, encode=True, training=None):
         if encode:
             # inputs: (batch, sequence, token_dim)
             return tf.einsum('bst,tm->bsm', inputs, self.emb_matrix)
