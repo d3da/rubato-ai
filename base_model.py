@@ -147,6 +147,11 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
     def on_batch_end(self, batch, logs=None):
         step = self.model.batch_ctr.value()
+
+        if step == 0:
+            self.model.batch_ctr.assign_add(1)
+            return
+
         if logs is None:
             logs = {}
 
