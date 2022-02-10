@@ -132,7 +132,7 @@ class TransformerBlock(tf.keras.layers.Layer):
         return self.layernorm2(attn_output + ffn_output, training=training)
 
 
-class InputEmbedding(tf.keras.layers.Layer):
+class PositionalEncoding(tf.keras.layers.Layer):
     """
     Learned token embeddings are added to learned positional embeddings.
 
@@ -140,21 +140,12 @@ class InputEmbedding(tf.keras.layers.Layer):
 
     TODO learned/linear embeddings with hparams
     """
-    def __init__(self, maxlen, vocab_size, embed_dim, drop_rate):
+    def __init__(self, max_seq_len, embed_dim):
         super().__init__()
-        self.token_emb = tf.keras.layers.Embedding(input_dim=vocab_size, output_dim=embed_dim)
-        self.embed_dim = embed_dim
-        self.pos_enc = InputEmbedding.positional_encoding(maxlen, embed_dim)
-        self.dropout = tf.keras.layers.Dropout(drop_rate)
+        self.pos_enc = self.positional_encoding(max_seq_len, embed_dim)
 
     def call(self, x, training=False):
-        seq_len = tf.shape(x)[-1]
-        # input embedding part
-        x = self.token_emb(x, training=training)
-        x *= tf.math.sqrt(tf.cast(self.embed_dim, tf.float32))
-        # positional encoding part
-        x += self.pos_enc[:, :seq_len, :]
-        return self.dropout(x, training=training)
+        return self.pos_enc[:, :x.shape[1], :x.shape[2]]
 
     @staticmethod
     def get_angles(pos, i, d_model):
@@ -165,7 +156,7 @@ class InputEmbedding(tf.keras.layers.Layer):
     @staticmethod
     def positional_encoding(position, d_model):
         # TODO tensorflow version
-        angle_rads = InputEmbedding.get_angles(
+        angle_rads = PositionalEncoding.get_angles(
             np.arange(position)[:, np.newaxis],
             np.arange(d_model)[np.newaxis, :],
             d_model
@@ -175,6 +166,26 @@ class InputEmbedding(tf.keras.layers.Layer):
         pos_encoding = angle_rads[np.newaxis, ...]
 
         return tf.cast(pos_encoding, dtype=tf.float32)
+
+
+class SharedTokenEmbedding(tf.keras.layers.Layer):
+    """
+    Section 3.4 of Vaswani et al. (2017):
+        The input embedding matrix and the linear projection
+        before the final softmax in the decoder share weights,
+        similar to Press & Wolf (2016)
+    """
+    def __init__(self, token_dim, model_dim):
+        super().__init__()
+        self.emb_matrix = self.add_weight(name='shared_embedding', shape=(token_dim, model_dim), trainable=True)
+
+    def call(self, inputs, encode=True, training=False):
+        if encode:
+            # inputs: (batch, sequence, token_dim)
+            return tf.einsum('bst,tm->bsm', inputs, self.emb_matrix)
+
+        # inputs: (batch, sequence, model_dim)
+        return tf.einsum('bsm,tm->bst', inputs, self.emb_matrix)
 
 
 class TransformerModel(tf.keras.layers.Layer):
@@ -188,22 +199,33 @@ class TransformerModel(tf.keras.layers.Layer):
                  ff_dim: int,
                  attn_dim: Optional[int]):
         super().__init__()
+        self._vocab_size = vocab_size
         self._sequence_length = sequence_length
+        self._embed_dim = embed_dim
 
-        self.emb = InputEmbedding(sequence_length, vocab_size, embed_dim, drop_rate)
+        self.inp_emb = SharedTokenEmbedding(vocab_size, embed_dim)
+        self.pos_enc = PositionalEncoding(sequence_length, embed_dim)
+        self.inp_dropout = tf.keras.layers.Dropout(drop_rate)
+
         self.transformer_stack = tf.keras.Sequential([
             TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, attn_dim)
             for _ in range(num_layers)
         ])
-        self.dense = tf.keras.layers.Dense(vocab_size)
+        self.out_emb = self.inp_emb  # last projection shares weights with input embedding
+        # Softmax is omitted, model returns logits
 
     def call(self, inputs, training=False):
-        # inputs: (B, L)
-        x = self.emb(inputs, training=training)
-        # x: (B, L, embed_dim)
+        # inputs: (batch, seq_len)
+        x = tf.one_hot(inputs, self._vocab_size)
+        # x: (batch, seq_len, vocab_size)
+        x = self.inp_emb(x, encode=True, training=training)
+        # x: (batch, seq_len, embed_dim)
+        x *= tf.math.sqrt(tf.cast(self._embed_dim, tf.float32))
+        x += self.pos_enc(x, training=training)
+
         x = self.transformer_stack(x, training=training)
-        # x: (B, L, embed_dim)
-        return self.dense(x, training=training)
+        return self.out_emb(x, encode=False, training=training)
+        # output: (batch, seq_len, vocab_size)
 
     def generate_step(self, inputs, temperature):
         inputs_truncated = inputs[:, max(0, inputs.shape[1]-self._sequence_length):]
