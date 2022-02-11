@@ -68,7 +68,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         if mask is not None:
             mask = tf.expand_dims(mask, axis=-3)  # Expand (B, T, S) to (B, h, T, S)
 
-        attn_score = self.attention_dot_product(q, k)
+        attn_score = self.attention_scaled_dot_product(q, k)
         attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along axis S
 
         x = tf.einsum('bhts,bshv->bthv', attn_score, v)  # (B, T, h, d_v)
