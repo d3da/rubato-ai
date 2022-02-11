@@ -65,21 +65,58 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         k = self.K(inputs, training=training)  # (B, S, h, d_k)
         v = self.V(inputs, training=training)  # (B, S, h, d_v)
 
-        # We scale the score before the multiplication by K.transpose because
-        #   the element-wise mult is faster with fewer elements
-        # So scaling here is faster when seq_len > d_k
-        q *= self.scale
-
-        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
-
         if mask is not None:
             mask = tf.expand_dims(mask, axis=-3)  # Expand (B, T, S) to (B, h, T, S)
 
+        attn_score = self.attention_dot_product(q, k)
         attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along axis S
 
         x = tf.einsum('bhts,bshv->bthv', attn_score, v)  # (B, T, h, d_v)
 
         return self.O(x, training=training)  # (B, T, d_model)
+
+    def attention_scaled_dot_product(self, q, k):
+        # We scale the score before the multiplication by K.transpose because
+        #   the element-wise mult is faster with fewer elements
+        # So scaling here is faster when seq_len > d_k
+        q *= self.scale
+        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
+        return attn_score
+
+
+class RelativeGlobalAttention(MultiHeadAttention):
+    """
+    TODO Clipping at k:
+        "For relative global attention, the maximum relative distance to
+        consider is set to half the training sequence length."
+            - Huang et al. (2019)
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.pos_emb = self.add_weight(name='positional_embedding_matrix',
+                                       shape=(self._max_seq_len, self._d_k),
+                                       trainable=True)
+
+    def attention_scaled_dot_product(self, q, k):
+        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
+
+        start_rel_pos = self._max_seq_len - q.shape[1]
+        Er = self.pos_emb[start_rel_pos:, :]
+        QEr = tf.einsum('bshk,rk->bhsr', q, Er)
+        Srel = self.skew(QEr)
+
+        attn_score += Srel
+        attn_score /= self.scale
+
+        return attn_score
+
+    @staticmethod
+    def skew(QEr):
+        # QEr: (B, h, seq_q, seq_r)
+        x = tf.pad(QEr, tf.constant([[0, 0], [0, 0], [0, 0], [1, 0]]))
+        x = tf.reshape(x, [x.shape[0], x.shape[1], x.shape[2]+1, x.shape[3]-1])
+        return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
 
 
 class TransformerBlock(tf.keras.layers.Layer):
@@ -88,7 +125,8 @@ class TransformerBlock(tf.keras.layers.Layer):
         super().__init__()
         if attn_dim is None:
             attn_dim = embed_dim
-        self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
+        # self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
+        self.attn = RelativeGlobalAttention(num_heads, embed_dim, attn_dim, sequence_length)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
