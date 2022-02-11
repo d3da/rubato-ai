@@ -103,11 +103,11 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
         start_rel_pos = self._max_seq_len - q.shape[1]
         Er = self.pos_emb[start_rel_pos:, :]
-        QEr = tf.einsum('bshk,rk->bhsr', q, Er)
+        QEr = tf.einsum('bthk,rk->bhtr', q, Er)
         Srel = self.skew(QEr)
 
         attn_score += Srel
-        attn_score /= self.scale
+        attn_score *= self.scale
 
         return attn_score
 
@@ -115,7 +115,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
     def skew(QEr):
         # QEr: (B, h, seq_q, seq_r)
         x = tf.pad(QEr, tf.constant([[0, 0], [0, 0], [0, 0], [1, 0]]))
-        x = tf.reshape(x, [x.shape[0], x.shape[1], x.shape[2]+1, x.shape[3]-1])
+        x = tf.reshape(x, [-1, x.shape[1], x.shape[2]+1, x.shape[3]-1])
         return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
 
 
