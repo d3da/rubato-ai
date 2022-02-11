@@ -35,11 +35,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
     """
-    def __init__(self, num_heads, embed_dim, attn_dim, sequence_length):
+    def __init__(self, num_heads, embed_dim, attn_dim, max_seq_len):
         super().__init__()
         self._num_heads = num_heads
         self._embed_dim = embed_dim
-        self._sequence_length = sequence_length
+        self._max_seq_len = max_seq_len
 
         assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
                                             f'Got num_heads={num_heads} and embed_dim={embed_dim}')
@@ -49,15 +49,15 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self._d_v = embed_dim // num_heads
         self._d_k = attn_dim // num_heads
 
-        self.Q = tf.keras.layers.experimental.EinsumDense('btd,dhk->bthk', output_shape=[sequence_length, num_heads, self._d_k])
-        self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[sequence_length, num_heads, self._d_k])
-        self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[sequence_length, num_heads, self._d_v])
+        self.Q = tf.keras.layers.experimental.EinsumDense('btd,dhk->bthk', output_shape=[max_seq_len, num_heads, self._d_k])
+        self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[max_seq_len, num_heads, self._d_k])
+        self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[max_seq_len, num_heads, self._d_v])
 
         self.scale = 1.0 / tf.math.sqrt(float(self._d_k))
 
         self.softmax = tf.keras.layers.Softmax(axis=3)
 
-        self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[sequence_length, embed_dim])
+        self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[max_seq_len, embed_dim])
 
     def call(self, inputs, mask, training=False):
         # inputs: (B, S, d_model)
