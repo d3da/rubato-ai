@@ -97,9 +97,6 @@ class TrainCallback(tf.keras.callbacks.Callback):
         super().__init__()
 
         self._train_dir = config['train_dir']
-        self._sample_dir = os.path.join(self._train_dir, 'train_samples')
-        if not os.path.exists(self._sample_dir):
-            os.mkdir(self._sample_dir)
 
         self._tensorboard_update_freq = config['tensorboard_update_freq']
         self._save_midi_freq = config['sample_midi_freq']
@@ -110,12 +107,20 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._validation_set = self._validation_generator()
 
         self._batch_start_time = 0.
-        self._writer = None
+        self._writer = None  # Defer instantiating writer and sample subdirectories before training
+        self._sample_subdir = None  # to avoid making empty subdirectories when not training
 
     def on_train_begin(self, logs=None):
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)
         log_dir = str(os.path.join('logs', self.model.name, run_time))
         self._writer = tf.summary.create_file_writer(log_dir)
+
+        sample_dir = os.path.join(self._train_dir, 'train_samples')
+        self._sample_subdir = os.path.join(sample_dir, self.model.name)
+        if not os.path.exists(sample_dir):
+            os.mkdir(sample_dir)
+        if not os.path.exists(self._sample_subdir):
+            os.mkdir(self._sample_subdir)
 
     def on_train_end(self, logs=None):
         self._writer.close()
@@ -135,7 +140,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             logs = {}
 
         if step % self._validation_freq == 0:
-            logs = self._run_validation(self._validation_batches, logs=logs)
+            logs = self._run_validation(self._validation_batches, logs)
 
         if step % self._tensorboard_update_freq == 0:
             with self._writer.as_default():
@@ -149,7 +154,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             music = self.model.sample_music()
             for i, seq in enumerate(music):
                 midi = sequence_to_midi(seq)
-                midi_path = os.path.join(os.path.join(self._sample_dir, f'{self.model.name}_{step}_{i}.midi'))
+                midi_path = os.path.join(os.path.join(self._sample_subdir, f'{self.model.name}_{step}_{i}.midi'))
                 midi.save(midi_path)
 
         if step % self._save_checkpoint_freq == 0:
@@ -165,9 +170,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
         self.model.checkpoint_mgr.save()
 
-    def _run_validation(self, num_batches, logs=None):
-        if logs is None:
-            logs = {}
+    def _run_validation(self, num_batches, logs):
         batch_losses = []
         for _ in range(num_batches):
             x, y = self._validation_set.__next__()
