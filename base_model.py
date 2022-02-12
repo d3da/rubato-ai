@@ -5,6 +5,7 @@
 import os
 import sys
 import time
+from typing import Generator
 
 import numpy as np
 import tensorflow as tf
@@ -106,6 +107,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
         self._validation_freq = config['validation_freq']
         self._validation_batches = config['validation_batches']
+        self._validation_set = self._validation_generator()
 
         self._batch_start_time = 0.
         self._writer = None
@@ -167,15 +169,28 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if logs is None:
             logs = {}
         batch_losses = []
-        for i, (x, y) in enumerate(self.model.input_loader.test_dataset):
+        for _ in range(num_batches):
+            x, y = self._validation_set.__next__()
             y_hat = self.model.__call__(x, training=False)
             loss = self.model.loss.__call__(y, y_hat)
             batch_losses.append(float(loss))
-            if i >= num_batches:
-                break
         val_loss = np.average(batch_losses)
         logs['val_loss'] = val_loss
         return logs
+
+    def _validation_generator(self) -> Generator:
+        """
+        (Temporary?) Workaround:
+        Everytime that input_loader.validation_dataset.__iter__() is called,
+            new processes are spawned to generate the data (by processing midi files).
+        These processes accumulate and cause a memory leak slash slowly detonating fork bomb,
+            when __iter__ is repeatedly called without iterating through the entire epoch.
+        Hence, we wrap the dataset in another generator (this function) which reuses an iterator
+            until it is entirely consumed, allowing the processes to be cleaned up properly.
+        """
+        while True:
+            for x, y in self.model.input_loader.validation_dataset:
+                yield x, y
 
 
 if __name__ == '__main__':

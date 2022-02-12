@@ -106,14 +106,14 @@ class PerformanceInputLoader:
                 output_signature=(
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
                 )).shuffle(8092)  # (s+1)
-                  .prefetch(tf.data.AUTOTUNE)
                   .batch(batch_size, drop_remainder=False)  # (<=b, s+1)
                   .map(PerformanceInputLoader.split_x_y)  # (<=b, Tuple(s, s))
-                  .prefetch(tf.data.AUTOTUNE))
+                  .prefetch(tf.data.AUTOTUNE)
+        )
 
         # TODO we really don't need 8 processes to generate the test set
         # also do we want randomness in the test dataset?
-        self.test_dataset = (
+        self.validation_dataset = (
                 tf.data.Dataset.from_generator(
                     PerformanceInputLoader.threaded_window_generator,
                     args=(test, base_data_path, '', window_size, min_stride, max_stride),
