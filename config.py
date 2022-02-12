@@ -20,12 +20,15 @@ default_conf = {
     'min_stride': 512,
     'max_stride': 1024,
 
+    # dataset generator settings
+    'shuffle_buffer_size': 8096,
+    'queue_size': 32,  # No impact on model performance
+    'num_threads': 4,  # No impact on model performance (may impact throughput)
 
-    # TODO Performance RNN
+    # TODO Performance RNN / Vaswani hparams
 
     # Model settings: (Transformer)
-    # 'num_layers': 8,
-    'num_layers': 1,
+    'num_layers': 8,
     'drop_rate': 0.2,
     'embed_dim': 512,
     'attn_dim': 384,
@@ -71,6 +74,9 @@ def load_model_from_config(config: Dict[str, Any]) -> PerformanceModel:
         max_stride=config['max_stride'],
         batch_size=config['batch_size'],
         augmentation=config['augmentation'],
+        shuffle_buffer_size=config['shuffle_buffer_size'],
+        queue_size=config['queue_size'],
+        num_threads=config['num_threads'],
     )
     inner_model = TransformerModel(
         vocab_size=input_loader.vocab_size,
