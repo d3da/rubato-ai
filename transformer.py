@@ -35,29 +35,36 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
     """
-    def __init__(self, num_heads, embed_dim, attn_dim, max_seq_len, **kwargs):
+    def __init__(self, **config):
         super().__init__()
-        self._num_heads = num_heads
-        self._embed_dim = embed_dim
-        self._max_seq_len = max_seq_len
+        self._num_heads = config['attn_heads']
+        self._embed_dim = config['embed_dim']
+        self._max_seq_len = config['sequence_length']
+        self._attn_dim = config.get('attn_dim')
+        if self._attn_dim is None:
+            self._attn_dim = self._embed_dim
 
-        assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
-                                            f'Got num_heads={num_heads} and embed_dim={embed_dim}')
-        assert attn_dim % num_heads == 0, ('{num_heads} must be a divisor of {attn_dim}\n'
-                                           f'Got num_heads={num_heads} and attn_dim={attn_dim}')
+        assert self._embed_dim % self._num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
+                                                        f'Got num_heads={self._num_heads} and embed_dim={self._embed_dim}')
+        assert self._attn_dim % self._num_heads == 0, ('{num_heads} must be a divisor of {attn_dim}\n'
+                                                       f'Got num_heads={self._num_heads} and attn_dim={self._attn_dim}')
 
-        self._d_v = embed_dim // num_heads
-        self._d_k = attn_dim // num_heads
+        self._d_v = self._embed_dim // self._num_heads
+        self._d_k = self._attn_dim // self._num_heads
 
-        self.Q = tf.keras.layers.experimental.EinsumDense('btd,dhk->bthk', output_shape=[max_seq_len, num_heads, self._d_k])
-        self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[max_seq_len, num_heads, self._d_k])
-        self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[max_seq_len, num_heads, self._d_v])
+        self.Q = tf.keras.layers.experimental.EinsumDense(
+            'btd,dhk->bthk', output_shape=[self._max_seq_len, self._num_heads, self._d_k])
+        self.K = tf.keras.layers.experimental.EinsumDense(
+            'bsd,dhk->bshk', output_shape=[self._max_seq_len, self._num_heads, self._d_k])
+        self.V = tf.keras.layers.experimental.EinsumDense(
+            'bsd,dhv->bshv', output_shape=[self._max_seq_len, self._num_heads, self._d_v])
 
         self.scale = 1.0 / tf.math.sqrt(float(self._d_k))
 
         self.softmax = tf.keras.layers.Softmax(axis=3)
 
-        self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[max_seq_len, embed_dim])
+        self.O = tf.keras.layers.experimental.EinsumDense(
+            'bthv,dhv->btd', output_shape=[self._max_seq_len, self._embed_dim])
 
     def call(self, inputs, mask, training=False):
         # inputs: (B, S, d_model)
@@ -93,16 +100,17 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
     Distances are clipped beyond {clipping_distance}
     """
-    def __init__(self, clipping_distance: Optional[int] = None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, **config):
+        super().__init__(**config)
 
-        if clipping_distance is None:
-            self._clipping_distance = self._max_seq_len
+        max_relative_pos = config.get('max_relative_pos')
+        if max_relative_pos is None:
+            self._max_relative_pos = self._max_seq_len
         else:
-            self._clipping_distance = clipping_distance
+            self._max_relative_pos = max_relative_pos
 
         self.pos_emb = self.add_weight(name='positional_embedding_matrix',
-                                       shape=(self._clipping_distance, self._d_k),
+                                       shape=(self._max_relative_pos, self._d_k),
                                        trainable=True)
 
     def attention_scaled_dot_product(self, q, k):
@@ -123,7 +131,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
         """
         Calculate Er, clipping at a max distance of self._clipping_distance
         """
-        length_diff = seq_len - self._clipping_distance
+        length_diff = seq_len - self._max_relative_pos
 
         # If the supplied sequence is larger than the relative position matrix (self.pos_emb),
         #     we repeat the embedding with the furthest distance
@@ -146,22 +154,24 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
 class TransformerBlock(tf.keras.layers.Layer):
 
-    # TODO hyperparams relative/absolute mha, clipping dist etc.
-    def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, sequence_length, attn_dim=None):
+    def __init__(self, **config):
         super().__init__()
-        if attn_dim is None:
-            attn_dim = embed_dim
 
-        self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
-        # self.attn = RelativeGlobalAttention(clipping_distance=sequence_length//2, num_heads=num_heads, embed_dim=embed_dim, attn_dim=attn_dim, max_seq_len=sequence_length)
+        if config['attn_type'] == 'absolute':
+            self.attn = MultiHeadAttention(**config)
+        elif config['attn_type'] == 'relative':
+            self.attn = RelativeGlobalAttention(**config)
+        else:
+            raise ValueError('Unsupported config.attn_type,'
+                             'please select either \'absolute\' or \'relative\'.')
 
         self.ffn = tf.keras.Sequential([
-            tf.keras.layers.Dense(ff_dim, activation='relu'),
-            tf.keras.layers.Dense(embed_dim)])
+            tf.keras.layers.Dense(config['ff_dim'], activation='relu'),
+            tf.keras.layers.Dense(config['embed_dim'])])
         self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-        self.dropout1 = tf.keras.layers.Dropout(drop_rate)
-        self.dropout2 = tf.keras.layers.Dropout(drop_rate)
+        self.dropout1 = tf.keras.layers.Dropout(config['drop_rate'])
+        self.dropout2 = tf.keras.layers.Dropout(config['drop_rate'])
 
     def call(self, inputs, training=False):
         input_shape = tf.shape(inputs)
@@ -235,25 +245,19 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
 class TransformerModel(tf.keras.layers.Layer):
     def __init__(self,
                  vocab_size: int,
-                 sequence_length: int,
-                 num_layers: int,
-                 drop_rate: float,
-                 embed_dim: int,
-                 attn_heads: int,
-                 ff_dim: int,
-                 attn_dim: Optional[int]):
+                 **config):
         super().__init__()
         self._vocab_size = vocab_size
-        self._sequence_length = sequence_length
-        self._embed_dim = embed_dim
+        self._sequence_length = config['sequence_length']
+        self._embed_dim = config['embed_dim']
 
-        self.inp_emb = SharedTokenEmbedding(vocab_size, embed_dim)
-        self.pos_enc = PositionalEncoding(sequence_length, embed_dim)
-        self.inp_dropout = tf.keras.layers.Dropout(drop_rate)
+        self.inp_emb = SharedTokenEmbedding(self._vocab_size, self._embed_dim)
+        self.pos_enc = PositionalEncoding(self._sequence_length, self._embed_dim)
+        self.inp_dropout = tf.keras.layers.Dropout(config['drop_rate'])
 
         self.transformer_stack = tf.keras.Sequential([
-            TransformerBlock(embed_dim, attn_heads, ff_dim, drop_rate, sequence_length, attn_dim)
-            for _ in range(num_layers)
+            TransformerBlock(**config)
+            for _ in range(config['num_layers'])
         ])
         self.out_emb = self.inp_emb  # last projection shares weights with input embedding
         # Softmax is omitted, model returns logits

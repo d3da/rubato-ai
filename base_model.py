@@ -22,51 +22,33 @@ class PerformanceModel(tf.keras.Model):
                  inner_model,
                  input_loader,
                  model_name,
-                 train_dir,
                  restore_checkpoint,
-                 learning_rate=None,
-                 adam_beta1=None,
-                 adam_beta2=None,
-                 adam_eps=None,
-                 warmup_steps=None,
-                 embed_dimension=None,
-                 label_smoothing=0.0):
+                 **config):
         super().__init__(name=model_name)
         self.input_loader = input_loader
-        self.train_dir = train_dir
+        self.train_dir = config['train_dir']
 
         # TODO abstract base class for inner model
         #      methods needed: call(), __call__(), sample_music(),
         #   properties needed: optimizer??
-        # TODO config format
         self.inner_model = inner_model
 
         self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
 
-        self.optimizer = Optimizer.create_adam_optimizer(
-            learning_rate,
-            adam_beta1,
-            adam_beta2,
-            adam_eps,
-            warmup_steps,
-            step_counter=self.batch_ctr,
-            embed_dimension=embed_dimension
-            # TODO get embed dim from inner model maybe?
-            # or rather from some kinda hparam config even
-        )
+        self.optimizer = Optimizer.create_adam_optimizer(step_counter=self.batch_ctr, **config)
 
         self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
-                                                      label_smoothing=label_smoothing)
+                                                      label_smoothing=config['label_smoothing'])
         self.compile(optimizer=self.optimizer, loss=self.loss,
                      metrics=['accuracy'])
 
-        checkpoint_dir = os.path.join(train_dir, 'checkpoints', model_name)
+        checkpoint_dir = os.path.join(self.train_dir, 'checkpoints', model_name)
         checkpoint = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
         self.checkpoint_mgr = tf.train.CheckpointManager(
             checkpoint,
             directory=checkpoint_dir,
-            max_to_keep=50
+            max_to_keep=config['kept_checkpoints']
         )
         if restore_checkpoint:
             checkpoint.restore(self.checkpoint_mgr.latest_checkpoint)
@@ -75,7 +57,7 @@ class PerformanceModel(tf.keras.Model):
             else:
                 print('Initialized model (we\'re at batch zero)')
 
-        self.callbacks = [TrainCallback(train_dir=train_dir)]
+        self.callbacks = [TrainCallback(**config)]
         self.load_time = time.localtime()
 
     def call(self, inputs, training=False):
@@ -110,26 +92,20 @@ class TrainCallback(tf.keras.callbacks.Callback):
         tensorboard graphs to span multiple runs.
 
     """
-    def __init__(self,
-                 train_dir,
-                 update_freq: int = 25,
-                 save_midi_freq: int = 250,
-                 save_checkpoint_freq: int = 250,
-                 validate_freq: int = 1000,
-                 validate_batches: int = 25):
+    def __init__(self, **config):
         super().__init__()
 
-        self._train_dir = train_dir
-        self._sample_dir = os.path.join(train_dir, 'train_samples')
+        self._train_dir = config['train_dir']
+        self._sample_dir = os.path.join(self._train_dir, 'train_samples')
         if not os.path.exists(self._sample_dir):
             os.mkdir(self._sample_dir)
 
-        self._update_freq = update_freq
-        self._save_midi_freq = save_midi_freq
-        self._save_checkpoint_freq = save_checkpoint_freq
+        self._tensorboard_update_freq = config['tensorboard_update_freq']
+        self._save_midi_freq = config['sample_midi_freq']
+        self._save_checkpoint_freq = config['save_checkpoint_freq']
 
-        self._validate_freq = validate_freq
-        self._validate_batches = validate_batches
+        self._validation_freq = config['validation_freq']
+        self._validation_batches = config['validation_batches']
 
         self._batch_start_time = 0.
         self._writer = None
@@ -146,6 +122,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._batch_start_time = time.time()
 
     def on_batch_end(self, batch, logs=None):
+        _batch_time = time.time() - self._batch_start_time
         step = self.model.batch_ctr.value()
 
         if step == 0:
@@ -155,12 +132,11 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if logs is None:
             logs = {}
 
-        if step % self._validate_freq == 0:
-            logs = self._run_validation(self._validate_batches, logs=logs)
+        if step % self._validation_freq == 0:
+            logs = self._run_validation(self._validation_batches, logs=logs)
 
-        if step % self._update_freq == 0:
+        if step % self._tensorboard_update_freq == 0:
             with self._writer.as_default():
-                _batch_time = time.time() - self._batch_start_time
                 tf.summary.scalar('batch_time', _batch_time, step=step)
                 for key, value in logs.items():
                     tf.summary.scalar(key, value, step=step)
@@ -203,6 +179,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
 
 if __name__ == '__main__':
+    exit(print('Run config.py instead'))
     dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
     dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
 
