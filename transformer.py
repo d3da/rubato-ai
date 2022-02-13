@@ -2,8 +2,6 @@
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
-from typing import Optional
-
 import numpy as np
 import tensorflow as tf
 
@@ -98,7 +96,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
     A variation of regular MultiHeadAttention, where information about distance
         between queries and keys is added to the dot-product attention.
 
-    Distances are clipped beyond {clipping_distance}
+    Distances further than max_relative_pos are clipped
     """
     def __init__(self, **config):
         super().__init__(**config)
@@ -110,7 +108,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
             self._max_relative_pos = max_relative_pos
 
         self.pos_emb = self.add_weight(name='positional_embedding_matrix',
-                                       shape=(self._max_relative_pos, self._d_k),
+                                       shape=(self._max_relative_pos, self._num_heads, self._d_k),
                                        trainable=True)
 
     def attention_scaled_dot_product(self, q, k):
@@ -118,8 +116,8 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
         assert q.shape[1] == k.shape[1]
 
-        Er = self.clipped_relative_positions(q.shape[1])  # (S, d_k)
-        QEr = tf.einsum('bthk,rk->bhtr', q, Er)
+        Er = self.clipped_relative_positions(q.shape[1])  # (S, h, d_k)
+        QEr = tf.einsum('bthk,rhk->bhtr', q, Er)
         Srel = self.skew(QEr)  # (B, h, T, S)
 
         attn_score += Srel
@@ -129,16 +127,16 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
     def clipped_relative_positions(self, seq_len):
         """
-        Calculate Er, clipping at a max distance of self._clipping_distance
+        Calculate Er, clipping at a max distance of self._max_relative_pos
         """
         length_diff = seq_len - self._max_relative_pos
 
         # If the supplied sequence is larger than the relative position matrix (self.pos_emb),
         #     we repeat the embedding with the furthest distance
         if length_diff > 0:
-            clip_pos = tf.expand_dims(self.pos_emb[0, :], axis=0)  # (1, d_k)
-            clips = tf.tile(clip_pos, [length_diff, 1])  # (num_clips, d_k)
-            return tf.concat([clips, self.pos_emb], axis=0)  # (S, d_k)
+            clip_pos = tf.expand_dims(self.pos_emb[0, :, :], axis=0)  # (1, h, d_k)
+            clips = tf.tile(clip_pos, [length_diff, 1, 1])  # (num_clips, h, d_k)
+            return tf.concat([clips, self.pos_emb], axis=0)  # (S, h, d_k)
 
         # Otherwise just truncate the embeddings if necessary
         start_pos = max(0, -length_diff)
