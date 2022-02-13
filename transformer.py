@@ -35,11 +35,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
     """
-    def __init__(self, num_heads, embed_dim, attn_dim, sequence_length):
+    def __init__(self, num_heads, embed_dim, attn_dim, max_seq_len, **kwargs):
         super().__init__()
         self._num_heads = num_heads
         self._embed_dim = embed_dim
-        self._sequence_length = sequence_length
+        self._max_seq_len = max_seq_len
 
         assert embed_dim % num_heads == 0, ('{num_heads} must be a divisor of {embed_dim}\n'
                                             f'Got num_heads={num_heads} and embed_dim={embed_dim}')
@@ -49,15 +49,15 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self._d_v = embed_dim // num_heads
         self._d_k = attn_dim // num_heads
 
-        self.Q = tf.keras.layers.experimental.EinsumDense('btd,dhk->bthk', output_shape=[sequence_length, num_heads, self._d_k])
-        self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[sequence_length, num_heads, self._d_k])
-        self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[sequence_length, num_heads, self._d_v])
+        self.Q = tf.keras.layers.experimental.EinsumDense('btd,dhk->bthk', output_shape=[max_seq_len, num_heads, self._d_k])
+        self.K = tf.keras.layers.experimental.EinsumDense('bsd,dhk->bshk', output_shape=[max_seq_len, num_heads, self._d_k])
+        self.V = tf.keras.layers.experimental.EinsumDense('bsd,dhv->bshv', output_shape=[max_seq_len, num_heads, self._d_v])
 
         self.scale = 1.0 / tf.math.sqrt(float(self._d_k))
 
         self.softmax = tf.keras.layers.Softmax(axis=3)
 
-        self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[sequence_length, embed_dim])
+        self.O = tf.keras.layers.experimental.EinsumDense('bthv,dhv->btd', output_shape=[max_seq_len, embed_dim])
 
     def call(self, inputs, mask, training=False):
         # inputs: (B, S, d_model)
@@ -65,30 +65,96 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         k = self.K(inputs, training=training)  # (B, S, h, d_k)
         v = self.V(inputs, training=training)  # (B, S, h, d_v)
 
-        # We scale the score before the multiplication by K.transpose because
-        #   the element-wise mult is faster with fewer elements
-        # So scaling here is faster when seq_len > d_k
-        q *= self.scale
-
-        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
-
         if mask is not None:
             mask = tf.expand_dims(mask, axis=-3)  # Expand (B, T, S) to (B, h, T, S)
 
+        attn_score = self.attention_scaled_dot_product(q, k)
         attn_score = self.softmax(attn_score, mask=mask, training=training)  # softmax along axis S
 
         x = tf.einsum('bhts,bshv->bthv', attn_score, v)  # (B, T, h, d_v)
 
         return self.O(x, training=training)  # (B, T, d_model)
 
+    def attention_scaled_dot_product(self, q, k):
+        # We scale the score before the multiplication by K.transpose because
+        #   the element-wise mult is faster with fewer elements
+        # So scaling here is faster when seq_len > d_k
+        q *= self.scale
+        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
+        return attn_score
+
+
+class RelativeGlobalAttention(MultiHeadAttention):
+    """
+    Huang et al. (2018)
+
+    A variation of regular MultiHeadAttention, where information about distance
+        between queries and keys is added to the dot-product attention.
+
+    Distances are clipped beyond {clipping_distance}
+    """
+    def __init__(self, clipping_distance: Optional[int] = None, **kwargs):
+        super().__init__(**kwargs)
+
+        if clipping_distance is None:
+            self._clipping_distance = self._max_seq_len
+        else:
+            self._clipping_distance = clipping_distance
+
+        self.pos_emb = self.add_weight(name='positional_embedding_matrix',
+                                       shape=(self._clipping_distance, self._d_k),
+                                       trainable=True)
+
+    def attention_scaled_dot_product(self, q, k):
+        attn_score = tf.einsum('bshk,bthk->bhts', k, q)  # (B, h, T, S)
+
+        assert q.shape[1] == k.shape[1]
+
+        Er = self.clipped_relative_positions(q.shape[1])  # (S, d_k)
+        QEr = tf.einsum('bthk,rk->bhtr', q, Er)
+        Srel = self.skew(QEr)  # (B, h, T, S)
+
+        attn_score += Srel
+        attn_score *= self.scale
+
+        return attn_score
+
+    def clipped_relative_positions(self, seq_len):
+        """
+        Calculate Er, clipping at a max distance of self._clipping_distance
+        """
+        length_diff = seq_len - self._clipping_distance
+
+        # If the supplied sequence is larger than the relative position matrix (self.pos_emb),
+        #     we repeat the embedding with the furthest distance
+        if length_diff > 0:
+            clip_pos = tf.expand_dims(self.pos_emb[0, :], axis=0)  # (1, d_k)
+            clips = tf.tile(clip_pos, [length_diff, 1])  # (num_clips, d_k)
+            return tf.concat([clips, self.pos_emb], axis=0)  # (S, d_k)
+
+        # Otherwise just truncate the embeddings if necessary
+        start_pos = max(0, -length_diff)
+        return self.pos_emb[start_pos:]
+
+    @staticmethod
+    def skew(QEr):
+        # QEr: (B, h, seq_q, seq_r)
+        x = tf.pad(QEr, tf.constant([[0, 0], [0, 0], [0, 0], [1, 0]]))
+        x = tf.reshape(x, [-1, x.shape[1], x.shape[2]+1, x.shape[3]-1])
+        return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
+
 
 class TransformerBlock(tf.keras.layers.Layer):
 
+    # TODO hyperparams relative/absolute mha, clipping dist etc.
     def __init__(self, embed_dim, num_heads, ff_dim, drop_rate, sequence_length, attn_dim=None):
         super().__init__()
         if attn_dim is None:
             attn_dim = embed_dim
+
         self.attn = MultiHeadAttention(num_heads, embed_dim, attn_dim, sequence_length)
+        # self.attn = RelativeGlobalAttention(clipping_distance=sequence_length//2, num_heads=num_heads, embed_dim=embed_dim, attn_dim=attn_dim, max_seq_len=sequence_length)
+
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(ff_dim, activation='relu'),
             tf.keras.layers.Dense(embed_dim)])
