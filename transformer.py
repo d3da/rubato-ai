@@ -268,6 +268,7 @@ class TransformerModel(tf.keras.layers.Layer):
         # x: (batch, seq_len, embed_dim)
         x *= tf.math.sqrt(tf.cast(self._embed_dim, tf.float32))
         x += self.pos_enc(x, training=training)
+        x = self.inp_dropout(x, training=training)
 
         x = self.transformer_stack(x, training=training)
         return self.out_emb(x, encode=False, training=training)
