@@ -132,7 +132,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         _batch_time = time.time() - self._batch_start_time
         step = self.model.batch_ctr.value()
 
-        if step == 0:
+        if batch == 0:
             self.model.batch_ctr.assign_add(1)
             return
 
