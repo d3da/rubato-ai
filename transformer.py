@@ -7,6 +7,8 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from base_model import PerformanceModel
+
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     """
@@ -154,8 +156,8 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
 class TransformerBlock(tf.keras.layers.Layer):
 
-    def __init__(self, **config):
-        super().__init__()
+    def __init__(self, name='transformer_block', **config):
+        super().__init__(name=name)
 
         if config['attn_type'] == 'absolute':
             self.attn = MultiHeadAttention(**config)
@@ -242,12 +244,15 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
         return tf.einsum('bsm,tm->bst', inputs, self.emb_matrix)
 
 
-class TransformerModel(tf.keras.layers.Layer):
+class TransformerModel(PerformanceModel):
     def __init__(self,
-                 vocab_size: int,
+                 # vocab_size: int,
+                 input_loader,
+                 model_name,
+                 restore_checkpoint,
                  **config):
-        super().__init__()
-        self._vocab_size = vocab_size
+        super().__init__(input_loader, model_name, restore_checkpoint, **config)
+        self._vocab_size = self.input_loader.vocab_size
         self._sequence_length = config['sequence_length']
         self._embed_dim = config['embed_dim']
 
@@ -255,10 +260,10 @@ class TransformerModel(tf.keras.layers.Layer):
         self.pos_enc = PositionalEncoding(self._sequence_length, self._embed_dim)
         self.inp_dropout = tf.keras.layers.Dropout(config['drop_rate'])
 
-        self.transformer_stack = tf.keras.Sequential([
-            TransformerBlock(**config)
-            for _ in range(config['num_layers'])
-        ])
+        self.transformer_stack = [
+            TransformerBlock(name=f'transformer_block_{i}', **config)
+            for i in range(config['num_layers'])
+        ]
         self.out_emb = self.inp_emb  # last projection shares weights with input embedding
         # Softmax is omitted, model returns logits
 
@@ -273,7 +278,9 @@ class TransformerModel(tf.keras.layers.Layer):
         x += self.pos_enc(x, training=training)
         x = self.inp_dropout(x, training=training)
 
-        x = self.transformer_stack(x, training=training)
+        for block in self.transformer_stack:
+            x = block(x, training=training)
+
         return self.out_emb(x, encode=False, training=training)
         # output: (batch, seq_len, vocab_size)
 

@@ -6,6 +6,7 @@ import tensorflow as tf
 
 from base_model import PerformanceModel
 from input_loader import PerformanceInputLoader
+from performance_rnn import PerformanceRNNModel
 from transformer import TransformerModel
 
 PROJECT_DIR = os.path.dirname(__file__)
@@ -78,17 +79,22 @@ def load_model_from_config(config: Dict[str, Any]) -> PerformanceModel:
         queue_size=config['queue_size'],
         num_threads=config['num_threads'],
     )
-    inner_model = TransformerModel(
-        vocab_size=input_loader.vocab_size,
+
+    model = TransformerModel(
+        input_loader,
+        'MyModel',
+        restore_checkpoint=False,
         **config
     )
-    model = PerformanceModel(
-        inner_model,
-        input_loader,
-        'HuangRelPos',  # todo don't allow 2 different model types wiith same name
-        restore_checkpoint=False,  # TODO
-        **config,
-    )
+    # model = PerformanceRNNModel(
+    #     'PerfRNN',
+    #     input_loader,
+    #     False,
+    #     vocab_size=input_loader.vocab_size,
+    #     rnn_units=512,
+    #     dropout=0.0,
+    #     **config
+    # )
 
     model.__call__(tf.zeros((config['batch_size'],
                              config['sequence_length']), dtype=tf.int32))

@@ -8,8 +8,10 @@ import time
 
 import tensorflow as tf
 
+from base_model import PerformanceModel
 
-class PerformanceRNNModel(tf.keras.Model):
+
+class PerformanceRNNModel(PerformanceModel):
     """
     seq_length: 512a
     lstm_h_dim: 512b
@@ -25,10 +27,14 @@ class PerformanceRNNModel(tf.keras.Model):
     Dense   -> (64, 512a, 413)  (no activation)
     """
     def __init__(self,
+                 input_loader,
+                 model_name,
+                 restore_checkpoint,
                  vocab_size,
                  rnn_units,
-                 dropout):
-        super().__init__(self)
+                 dropout,
+                 **config):
+        super().__init__(input_loader, model_name, restore_checkpoint, **config)
         self.vocab_size = vocab_size
 
         # Model layers

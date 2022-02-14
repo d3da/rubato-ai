@@ -10,29 +10,21 @@ from typing import Generator
 import numpy as np
 import tensorflow as tf
 
-from input_loader import PerformanceInputLoader, sequence_to_midi
+from input_loader import sequence_to_midi
 from optimizer import Optimizer
-from performance_rnn import PerformanceRNNModel
-from transformer import TransformerModel
 
 PROJECT_DIR = os.path.dirname(__file__)
 
 
 class PerformanceModel(tf.keras.Model):
     def __init__(self,
-                 inner_model,
-                 input_loader,
                  model_name,
+                 input_loader,
                  restore_checkpoint,
                  **config):
         super().__init__(name=model_name)
         self.input_loader = input_loader
         self.train_dir = config['train_dir']
-
-        # TODO abstract base class for inner model
-        #      methods needed: call(), __call__(), sample_music(),
-        #   properties needed: optimizer??
-        self.inner_model = inner_model
 
         self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
@@ -61,9 +53,6 @@ class PerformanceModel(tf.keras.Model):
         self.callbacks = [TrainCallback(**config)]
         self.load_time = time.localtime()
 
-    def call(self, inputs, training=False):
-        return self.inner_model.__call__(inputs, training=training)
-
     def train(self, epochs: int) -> None:
         """
         Note:
@@ -77,9 +66,6 @@ class PerformanceModel(tf.keras.Model):
             self.fit(self.input_loader.dataset, epochs=1,
                      callbacks=self.callbacks)
             print(f'Finished training epoch {e+1}/{epochs}.')
-
-    def sample_music(self, *args, **kwargs):
-        return self.inner_model.sample_music(*args, **kwargs)
 
 
 class TrainCallback(tf.keras.callbacks.Callback):
@@ -198,18 +184,8 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
 if __name__ == '__main__':
     exit(print('Run config.py instead'))
-    dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
-    dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
-
-    input_loader = PerformanceInputLoader(
-        dataset_base,
-        dataset_csv,
-        sequence_length=2048,
-        min_stride=1024,
-        max_stride=2048,
-        batch_size=1,
-        augmentation='aug-'
-    )
+    # dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
+    # dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
 
     # # Simon & Oore (2018)
     # inner_model = PerformanceRNNModel(
@@ -231,42 +207,42 @@ if __name__ == '__main__':
     # )
 
     # Huang 2018 (Baseline transformer)
-    inner_model = TransformerModel(
-        vocab_size=input_loader.vocab_size,
-        sequence_length=2048,
-        num_layers=8,
-        drop_rate=0.2,
-        embed_dim=384,
-        attn_heads=8,
-        ff_dim=1024,
-        attn_dim=512
-    )
-
-    model = PerformanceModel(
-        inner_model,
-        input_loader,
-        'outer_model',  #todo don't allow 2 different model types wiith same name
-        PROJECT_DIR,
-        restore_checkpoint=True,
-
-        # # Simon & Oore (2018)
-        # learning_rate=1e-3,
-
-        # Vaswani et al. (2017)
-        learning_rate=None,
-        adam_beta1=0.9,
-        adam_beta2=0.98,
-        adam_eps=1e-9,
-        warmup_steps=4000,
-        # embed_dimension=512,
-        label_smoothing=0.1,
-
-        # Huang et al. (2018)
-        embed_dimension=384,
-    )
-
-    model.__call__(tf.zeros((1, 2048), dtype=tf.int32))
-    model.summary()
-    model.train(1)
-    sys.exit()
+    # inner_model = TransformerModel(
+    #     vocab_size=input_loader.vocab_size,
+    #     sequence_length=2048,
+    #     num_layers=8,
+    #     drop_rate=0.2,
+    #     embed_dim=384,
+    #     attn_heads=8,
+    #     ff_dim=1024,
+    #     attn_dim=512
+    # )
+    #
+    # model = PerformanceModel(
+    #     inner_model,
+    #     input_loader,
+    #     'outer_model',  #todo don't allow 2 different model types wiith same name
+    #     PROJECT_DIR,
+    #     restore_checkpoint=True,
+    #
+    #     # # Simon & Oore (2018)
+    #     # learning_rate=1e-3,
+    #
+    #     # Vaswani et al. (2017)
+    #     learning_rate=None,
+    #     adam_beta1=0.9,
+    #     adam_beta2=0.98,
+    #     adam_eps=1e-9,
+    #     warmup_steps=4000,
+    #     # embed_dimension=512,
+    #     label_smoothing=0.1,
+    #
+    #     # Huang et al. (2018)
+    #     embed_dimension=384,
+    # )
+    #
+    # model.__call__(tf.zeros((1, 2048), dtype=tf.int32))
+    # model.summary()
+    # model.train(1)
+    # sys.exit()
 
