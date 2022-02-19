@@ -87,27 +87,37 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
 
 class PerformanceInputLoader:
 
-    def __init__(self, base_data_path: str, csv_path: str,
-                 sequence_length: int, min_stride: int, max_stride: int,
-                 batch_size: int, augmentation: Optional[str],
-                 shuffle_buffer_size, queue_size, num_threads):
+    # def __init__(self, base_data_path: str, csv_path: str,
+    #              sequence_length: int, min_stride: int, max_stride: int,
+    #              batch_size: int, augmentation: Optional[str],
+    #              shuffle_buffer_size, queue_size, num_threads):
+    def __init__(self, dataset_base_path, dataset_csv, **config):
 
-        check_dataset(base_data_path, csv_path)
+        check_dataset(dataset_base_path, dataset_csv)
 
-        train, test, validation = get_midi_filenames(csv_path)
+        train, test, validation = get_midi_filenames(dataset_csv)
 
-        window_size = sequence_length + 1
+        window_size = config['sequence_length'] + 1
 
         self.vocab_size = Event.vocab_size
 
         self.dataset = (
             tf.data.Dataset.from_generator(
                 PerformanceInputLoader.threaded_window_generator,
-                args=(train, base_data_path, augmentation, window_size, min_stride, max_stride, queue_size, num_threads),
+                args=(
+                    train,
+                    dataset_base_path,
+                    config['augmentation'],
+                    window_size,
+                    config['min_stride'],
+                    config['max_stride'],
+                    config['queue_size'],
+                    config['num_threads']
+                ),
                 output_signature=(
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
-                )).shuffle(shuffle_buffer_size)  # (s+1)
-                  .batch(batch_size, drop_remainder=False)  # (<=b, s+1)
+                )).shuffle(config['shuffle_buffer_size'])  # (s+1)
+                  .batch(config['batch_size'], drop_remainder=False)  # (<=b, s+1)
                   .map(PerformanceInputLoader.split_x_y)  # (<=b, Tuple(s, s))
                   .prefetch(tf.data.AUTOTUNE)
         )
@@ -116,10 +126,19 @@ class PerformanceInputLoader:
         self.validation_dataset = (
                 tf.data.Dataset.from_generator(
                     PerformanceInputLoader.threaded_window_generator,
-                    args=(test, base_data_path, '', window_size, min_stride, max_stride, queue_size, num_threads),
+                    args=(
+                        test,
+                        dataset_base_path,
+                        '',
+                        window_size,
+                        config['min_stride'],
+                        config['max_stride'],
+                        config['queue_size'],
+                        config['num_threads']
+                    ),
                     output_signature=(
                         tf.TensorSpec(shape=window_size, dtype=tf.int32)
-                    )).batch(batch_size, drop_remainder=False)
+                    )).batch(config['batch_size'], drop_remainder=False)
                       .map(PerformanceInputLoader.split_x_y)
         )
 
@@ -219,8 +238,3 @@ if __name__ == '__main__':
 
     exit()
 
-    sequence_length = 512
-    min_stride = 256
-    max_stride = 512
-    batch_size = 64
-    i = PerformanceInputLoader(base_path, csv_path, sequence_length, min_stride, max_stride, batch_size, 'aug-')

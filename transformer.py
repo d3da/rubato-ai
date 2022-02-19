@@ -246,12 +246,11 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
 
 class TransformerModel(PerformanceModel):
     def __init__(self,
-                 # vocab_size: int,
-                 input_loader,
                  model_name,
+                 input_loader,
                  restore_checkpoint,
                  **config):
-        super().__init__(input_loader, model_name, restore_checkpoint, **config)
+        super().__init__(model_name, input_loader, restore_checkpoint, **config)
         self._vocab_size = self.input_loader.vocab_size
         self._sequence_length = config['sequence_length']
         self._embed_dim = config['embed_dim']

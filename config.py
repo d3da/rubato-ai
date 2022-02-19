@@ -70,23 +70,17 @@ def load_model_from_config(config: Dict[str, Any]) -> PerformanceModel:
     input_loader = PerformanceInputLoader(
         dataset_base,
         dataset_csv,
-        sequence_length=config['sequence_length'],
-        min_stride=config['min_stride'],
-        max_stride=config['max_stride'],
-        batch_size=config['batch_size'],
-        augmentation=config['augmentation'],
-        shuffle_buffer_size=config['shuffle_buffer_size'],
-        queue_size=config['queue_size'],
-        num_threads=config['num_threads'],
+        **config
     )
 
     model = TransformerModel(
-        input_loader,
         'MyModel',
+        input_loader,
         restore_checkpoint=False,
         **config
     )
-    # model = PerformanceRNNModel(
+
+    # model = PerformanceRNNModel(  # TODO switch between transformer/rnn
     #     'PerfRNN',
     #     input_loader,
     #     False,
@@ -104,4 +98,4 @@ def load_model_from_config(config: Dict[str, Any]) -> PerformanceModel:
 
 if __name__ == '__main__':
     model = load_model_from_config(default_conf)
-    model.train(1)
+    model.train(10)
