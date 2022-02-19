@@ -88,9 +88,11 @@ class PerformanceRNNModel(PerformanceModel):
         result = next_category[:]
         start = time.time()
         for i in range(sample_length):
-            if verbose: print(f'Sampling... {i}/{sample_length}', end='\r')
+            if verbose:
+                print(f'Sampling... {i}/{sample_length}', end='\r')
             next_category, states = self.generate_step(
                     next_category, states, temperature)
             result = tf.concat([result, next_category], axis=1)
-        print(f'Sampled {sample_length} tokens in {time.time()-start:.2f} s.')
+        if verbose:
+            print(f'Sampled {sample_length} tokens in {time.time()-start:.2f} s.')
         return result

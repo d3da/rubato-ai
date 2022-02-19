@@ -295,8 +295,10 @@ class TransformerModel(PerformanceModel):
         result = primer[:]
         start = time.time()
         for i in range(sample_length):
-            if verbose: print(f'Sampling... {i}/{sample_length}', end='\r')
+            if verbose:
+                print(f'Sampling... {i}/{sample_length}', end='\r')
             predicted_categories = self.generate_step(result, temperature)
             result = tf.concat([result, predicted_categories], axis=-1)
-        print(f'Sampled {sample_length} tokens in {time.time()-start:.2f} s.')
+        if verbose:
+            print(f'Sampled {sample_length} tokens in {time.time()-start:.2f} s.')
         return result
