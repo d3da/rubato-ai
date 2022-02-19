@@ -2,6 +2,8 @@
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
+import time
+
 import numpy as np
 import tensorflow as tf
 
@@ -282,10 +284,13 @@ class TransformerModel(tf.keras.layers.Layer):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories
 
-    def sample_music(self, sample_length=512, temperature=1.0):
+    def sample_music(self, sample_length=512, temperature=1.0, verbose=False):
         primer = tf.constant([[0]]*1, shape=(1, 1), dtype=tf.int32)
         result = primer[:]
-        for _ in range(sample_length):
+        start = time.time()
+        for i in range(sample_length):
+            if verbose: print(f'Sampling... {i}/{sample_length}', end='\r')
             predicted_categories = self.generate_step(result, temperature)
             result = tf.concat([result, predicted_categories], axis=-1)
+        print(f'Sampled {sample_length} tokens in {time.time()-start:.2f} s.')
         return result

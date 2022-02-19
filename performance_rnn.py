@@ -3,25 +3,8 @@
 This Time with Feeling: Learning Expressive Musical Performance
 by Sageev Oore, Ian Simon, Sander Dieleman, Douglas Eck, Karen Simonyan
 https://arxiv.org/abs/1808.03715v1
-
-Implemented by Daan Dieperink
-<d.dieperink@student.utwente.nl>
-
-
-TODO:
-    Model:
-        sampling temp / beamsearch etc
-        early stopping
-    Misc:
-        sequence padding+masking
-
-    Train!
-
-Future improvements:
-    Argparse for cli use
-    Optimization/profiling
-    Refactor for training abstraction
 """
+import time
 
 import tensorflow as tf
 
@@ -90,16 +73,18 @@ class PerformanceRNNModel(tf.keras.Model):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories, states
 
-    # todo provide interface for sampling temperature / beam search etc
     # todo primers etc
     @tf.function
-    def sample_music(self, start_event_category=0, sample_length=512, num_seqs=2, temperature=1.0):
+    def sample_music(self, start_event_category=0, sample_length=512, num_seqs=2, temperature=1.0, verbose=False):
         states = None
         next_category = tf.constant([start_event_category]*num_seqs, shape=(num_seqs, 1), dtype=tf.int32)
         temperature = tf.constant(temperature, dtype=tf.float32)
         result = next_category[:]
-        for _ in range(sample_length):
+        start = time.time()
+        for i in range(sample_length):
+            if verbose: print(f'Sampling... {i}/{sample_length}', end='\r')
             next_category, states = self.generate_step(
                     next_category, states, temperature)
             result = tf.concat([result, next_category], axis=1)
+        print(f'Sampled {sample_length} tokens in {time.time()-start:.2f} s.')
         return result
