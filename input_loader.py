@@ -87,10 +87,6 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
 
 class PerformanceInputLoader:
 
-    # def __init__(self, base_data_path: str, csv_path: str,
-    #              sequence_length: int, min_stride: int, max_stride: int,
-    #              batch_size: int, augmentation: Optional[str],
-    #              shuffle_buffer_size, queue_size, num_threads):
     def __init__(self, dataset_base_path, dataset_csv, **config):
 
         check_dataset(dataset_base_path, dataset_csv)

@@ -271,7 +271,6 @@ class TransformerModel(PerformanceModel):
         x = tf.one_hot(inputs, self._vocab_size)
         # x: (batch, seq_len, vocab_size)
         x = self.inp_emb(x, encode=True, training=training)
-        x = self.inp_dropout(x, training=training)
         # x: (batch, seq_len, embed_dim)
         x *= tf.math.sqrt(tf.cast(self._embed_dim, tf.float32))
         x += self.pos_enc(x, training=training)

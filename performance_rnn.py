@@ -27,14 +27,14 @@ class PerformanceRNNModel(PerformanceModel):
     Dense   -> (64, 512a, 413)  (no activation)
     """
     def __init__(self,
-                 input_loader,
                  model_name,
+                 input_loader,
                  restore_checkpoint,
                  vocab_size,
                  rnn_units,
                  dropout,
                  **config):
-        super().__init__(input_loader, model_name, restore_checkpoint, **config)
+        super().__init__(model_name, input_loader, restore_checkpoint, **config)
         self.vocab_size = vocab_size
 
         # Model layers
