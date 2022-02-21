@@ -4,8 +4,6 @@ https://arxiv.org/abs/1808.03715v1
 """
 from typing import List, Iterable
 
-import pdb
-
 import mido
 
 
@@ -14,7 +12,7 @@ class Event:
     models the 413 events that make up the performance_rnn vocabulary
     """
 
-    vocab_size = 128 + 128 + 125 + 32
+    vocab_size = 128 + 128 + 100 + 32
 
     def __init__(self,
                  message_type: str,
@@ -25,7 +23,7 @@ class Event:
         elif message_type == 'NOTE_OFF':
             assert 0 <= message_value < 128
         elif message_type == 'TIME_SHIFT':
-            assert 0 <= message_value < 125
+            assert 0 <= message_value < 100
         elif message_type == 'VELOCITY':
             assert 0 <= message_value < 32
         else:
@@ -49,7 +47,7 @@ class Event:
         elif self.type == 'TIME_SHIFT':
             return 128 + 128 + self.value
         elif self.type == 'VELOCITY':
-            return 128 + 128 + 125 + self.value
+            return 128 + 128 + 100 + self.value
         raise ValueError
 
     def __eq__(self, other) -> bool:
@@ -68,12 +66,12 @@ class Event:
         if cat < 128:
             return Event('NOTE_OFF', cat)
         cat -= 128
-        if cat < 125:
+        if cat < 100:
             return Event('TIME_SHIFT', cat)
-        cat -= 125
+        cat -= 100
         if cat < 32:
             return Event('VELOCITY', cat)
-        raise ValueError(f'Event category should be less than {128*2+125+32}')
+        raise ValueError(f'Event category should be less than {128*2+100+32}')
 
     @staticmethod
     def from_elapsed(seconds: float) -> List['Event']:
@@ -82,13 +80,9 @@ class Event:
         """
         time_shifts = []
         # Quantize the elapsed time
-        # 0.000 -> 0
-        # 0.008 -> 1
-        # 0.016 -> 2
-        # 1.000 -> 125
-        steps: int = round(seconds * 125)
+        steps: int = round(seconds * 100)
         while steps > 0:
-            to_add = min(124, steps)
+            to_add = min(99, steps)
             time_shifts.append(Event('TIME_SHIFT', to_add))
             steps -= to_add
         return time_shifts
@@ -185,7 +179,7 @@ def events_to_midi(events: Iterable[Event]) -> mido.MidiFile:
                                       time=ticks_elapsed))
             ticks_elapsed = 0
         elif event.type == 'TIME_SHIFT':
-            ticks_elapsed += int(event.value / 125 * 1042)  # TODO which number here?
+            ticks_elapsed += int(event.value / 100 * 1042)  # TODO which number here?
         elif event.type == 'VELOCITY':
             current_velocity = event.value * 4
         else:
