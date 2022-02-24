@@ -84,8 +84,8 @@ class PerformanceInputLoader:
         window_size = config['sequence_length'] + 1
 
         self.midi_processor = MidiProcessor(config['time_granularity'],
-                                            piece_start=False,
-                                            piece_end=False)
+                                            config['piece_start'],
+                                            config['piece_end'])
         self.vocab_size = self.midi_processor.vocab_size
 
         self.dataset = (
