@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from typing import Tuple, List, Iterable, Optional
 
-from midi_reader import events_to_midi, midi_to_events, Event
+from midi_reader import Event, MidiProcessor
 
 import os
 import csv
@@ -39,10 +39,6 @@ def get_midi_filenames(csv_path: str) -> Tuple[List[str], List[str], List[str]]:
     return train_set, test_set, validation_set
 
 
-def sequence_to_midi(seq: List[int]) -> mido.MidiFile:
-    return events_to_midi(map(Event.from_category, seq))
-
-
 def _augmentation_iterator(augmentation_setting: Optional[str]) -> Iterable[Tuple[int, float]]:
     """
     Go through all the desired combinations of pitch and time augmentation
@@ -69,14 +65,6 @@ def random_augmentation(augmentation_setting: Optional[str]) -> Tuple[int, float
     return random.choice(list(_augmentation_iterator(augmentation_setting)))
 
 
-def file_to_seq(path: str, base_data_path: str,
-                augmentation: Optional[str] = None) -> np.array:
-    midi = mido.MidiFile(os.path.join(base_data_path, path))
-    pitch_augmentation, time_augmentation = random_augmentation(augmentation)
-    events = midi_to_events(midi, pitch_augmentation, time_augmentation)
-    return np.array(list(map(lambda e: e.category, events)))
-
-
 def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, max_stride: int) -> Iterable[np.array]:
     # TODO the last part of the track is usually cut off :(
     i = 0
@@ -87,63 +75,110 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
 
 class PerformanceInputLoader:
 
-    def __init__(self, base_data_path: str, csv_path: str,
-                 sequence_length: int, min_stride: int, max_stride: int,
-                 batch_size: int, augmentation: Optional[str]):
+    def __init__(self, dataset_base_path, dataset_csv, **config):
 
-        check_dataset(base_data_path, csv_path)
+        check_dataset(dataset_base_path, dataset_csv)
 
-        train, test, validation = get_midi_filenames(csv_path)
+        train, test, validation = get_midi_filenames(dataset_csv)
 
-        window_size = sequence_length + 1
+        window_size = config['sequence_length'] + 1
 
-        self.vocab_size = Event.vocab_size
+        self.midi_processor = MidiProcessor(config['time_granularity'],
+                                            piece_start=False,
+                                            piece_end=False)
+        self.vocab_size = self.midi_processor.vocab_size
 
         self.dataset = (
             tf.data.Dataset.from_generator(
                 PerformanceInputLoader.threaded_window_generator,
-                args=(train, base_data_path, augmentation, window_size, min_stride, max_stride),
+                args=(
+                    train,
+                    dataset_base_path,
+                    config['augmentation'],
+                    window_size,
+                    config['min_stride'],
+                    config['max_stride'],
+                    config['queue_size'],
+                    config['num_threads'],
+                    config['time_granularity'],
+                    False,  #TODO
+                    False  #TODO
+                ),
                 output_signature=(
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
-                )).shuffle(8092)  # (s+1)
+                )).shuffle(config['shuffle_buffer_size'])  # (s+1)
+                  .batch(config['batch_size'], drop_remainder=False)  # (<=b, s+1)
+                  .map(self.split_x_y)  # (<=b, Tuple(s, s))
                   .prefetch(tf.data.AUTOTUNE)
-                  .batch(batch_size, drop_remainder=False)  # (<=b, s+1)
-                  .map(PerformanceInputLoader.split_x_y)  # (<=b, Tuple(s, s))
-                  .prefetch(tf.data.AUTOTUNE))
+        )
 
-        # TODO we really don't need 8 processes to generate the test set
-        # also do we want randomness in the test dataset?
-        self.test_dataset = (
+        # TODO we don't need the sliding window stuff on the validation set
+        self.validation_dataset = (
                 tf.data.Dataset.from_generator(
                     PerformanceInputLoader.threaded_window_generator,
-                    args=(test, base_data_path, '', window_size, min_stride, max_stride),
+                    args=(
+                        test,
+                        dataset_base_path,
+                        '',
+                        window_size,
+                        config['min_stride'],
+                        config['max_stride'],
+                        config['queue_size'],
+                        config['num_threads'],
+                        config['time_granularity'],
+                        False,  #TODO
+                        False  #TODO
+                    ),
                     output_signature=(
                         tf.TensorSpec(shape=window_size, dtype=tf.int32)
-                    )).batch(batch_size, drop_remainder=False)
-                      .map(PerformanceInputLoader.split_x_y))
+                    )).batch(config['batch_size'], drop_remainder=False)
+                      .map(self.split_x_y)
+        )
 
     class SequenceProducerThread(multiprocessing.Process):
-        def __init__(self, path_list, base_data_path, augmentation, buffer):
+        def __init__(self,
+                     path_list,
+                     base_data_path,
+                     augmentation,
+                     buffer,
+                     time_granularity,
+                     piece_start,
+                     piece_end):
             super().__init__()
             self.path_list = path_list
             self.base_data_path = base_data_path
             self.augmentation = augmentation
             self.buffer = buffer
+            self.midi_processor = MidiProcessor(time_granularity, piece_start, piece_end)
 
         def run(self):
             for path in self.path_list:
-                seq = file_to_seq(path, self.base_data_path, self.augmentation)
-                self.buffer.put(seq)
+                midi = mido.MidiFile(os.path.join(self.base_data_path, path))
+                pitch_augmentation, time_augmentation = random_augmentation(self.augmentation)
+                events = self.midi_processor.parse_midi(midi, pitch_augmentation, time_augmentation)
+                sequence = self.midi_processor.events_to_indices(events)
+                self.buffer.put(np.array(list(sequence)))
 
     @staticmethod
-    def threaded_window_generator(
-            path_list,
-            base_data_path,
-            augmentation,
-            window_size,
-            min_stride,
-            max_stride):
-        for seq in PerformanceInputLoader.threaded_sequence_generator(path_list, base_data_path, augmentation):
+    def threaded_window_generator(path_list,
+                                  base_data_path,
+                                  augmentation,
+                                  window_size,
+                                  min_stride,
+                                  max_stride,
+                                  queue_size,
+                                  num_threads,
+                                  time_granularity,
+                                  piece_start,
+                                  piece_end):
+        for seq in PerformanceInputLoader.threaded_sequence_generator(path_list,
+                                                                      base_data_path,
+                                                                      augmentation,
+                                                                      queue_size,
+                                                                      num_threads,
+                                                                      time_granularity,
+                                                                      piece_start,
+                                                                      piece_end):
             for win in seq_to_windows_iterator(seq, window_size, min_stride, max_stride):
                 yield win
 
@@ -151,27 +186,29 @@ class PerformanceInputLoader:
     def threaded_sequence_generator(
             path_list,
             base_data_path,
-            augmentation):
-
-        # TODO: allow configuring these performance-impacting hparams
-        # no effect on dataset output
-        Q_SIZE = 64
-        NUM_THREADS = 7
-
+            augmentation,
+            queue_size,
+            num_threads,
+            time_granularity,
+            piece_start,
+            piece_end):
         random.shuffle(path_list)
 
-        buffer = multiprocessing.Queue(Q_SIZE)
-        paths_subset = np.array_split(path_list, NUM_THREADS)
+        buffer = multiprocessing.Queue(queue_size)
+        paths_subset = np.array_split(path_list, num_threads)
         slaves = []
 
         # spawn {NUM_THREADS} workers
-        for i in range(NUM_THREADS):
+        for i in range(num_threads):
             paths = paths_subset[i]
-            slave = PerformanceInputLoader.SequenceProducerThread(paths, base_data_path, augmentation, buffer)
+            slave = PerformanceInputLoader.SequenceProducerThread(
+                paths, base_data_path, augmentation, buffer, time_granularity, piece_start, piece_end
+            )
             slave.start()
             slaves.append(slave)
 
-        while True:
+        done = False
+        while not done:
             try:
                 # Return the next item in fifo queue
                 seq = buffer.get(block=True, timeout=10)
@@ -182,9 +219,6 @@ class PerformanceInputLoader:
                 for slave in slaves:
                     if slave.is_alive():
                         done = False
-                        break
-                if done:
-                    break
 
         for slave in slaves:
             slave.join()
@@ -194,15 +228,14 @@ class PerformanceInputLoader:
         while not buffer.empty():
             yield buffer.get()
 
-    @staticmethod
-    def split_x_y(batch: tf.Tensor):
+    def split_x_y(self, batch: tf.Tensor):
         """
         Note that only Y is converted to one_hot vectors,
         this is because the Embedding layer applied to X takes in sparse categories
         but the loss function needs one_hot encoded vectors to apply label smoothing
         """
         x = batch[:, :-1]
-        y = tf.one_hot(batch[:, 1:], Event.vocab_size)
+        y = tf.one_hot(batch[:, 1:], self.vocab_size)
         return x, y
 
 
@@ -217,8 +250,5 @@ if __name__ == '__main__':
     base_path = 'data/maestro-v3.0.0'
     csv_path = os.path.join(base_path, 'maestro-v3.0.0.csv')
 
-    sequence_length = 512
-    min_stride = 256
-    max_stride = 512
-    batch_size = 64
-    i = PerformanceInputLoader(base_path, csv_path, sequence_length, min_stride, max_stride, batch_size, 'aug-')
+    exit()
+
