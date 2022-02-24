@@ -101,8 +101,8 @@ class PerformanceInputLoader:
                     config['queue_size'],
                     config['num_threads'],
                     config['time_granularity'],
-                    False,  #TODO
-                    False  #TODO
+                    config['piece_start'],
+                    config['piece_end']
                 ),
                 output_signature=(
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
@@ -126,8 +126,8 @@ class PerformanceInputLoader:
                         config['queue_size'],
                         config['num_threads'],
                         config['time_granularity'],
-                        False,  #TODO
-                        False  #TODO
+                        config['piece_start'],
+                        config['piece_end']
                     ),
                     output_signature=(
                         tf.TensorSpec(shape=window_size, dtype=tf.int32)

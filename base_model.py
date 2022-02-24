@@ -95,7 +95,11 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._writer = None  # Defer instantiating writer and sample subdirectories before training
         self._sample_subdir = None  # to avoid making empty subdirectories when not training
 
-        self._midi_processor = MidiProcessor(config['time_granularity'], piece_start=False, piece_end=False)
+        self._midi_processor = MidiProcessor(
+            config['time_granularity'],
+            config['piece_start'],
+            config['piece_end']
+        )
 
     def on_train_begin(self, logs=None):
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)

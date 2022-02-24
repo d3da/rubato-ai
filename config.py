@@ -17,9 +17,13 @@ default_conf = {
     'sequence_length': 2048,
     'batch_size': 2,
     'augmentation': 'aug-',
-    'time_granularity': 100,
     'min_stride': 512,
     'max_stride': 1024,
+
+    # Midi processor settings
+    'time_granularity': 100,
+    'piece_start': True,
+    'piece_end': True,
 
     # dataset generator settings
     'shuffle_buffer_size': 8096,

@@ -14,10 +14,11 @@ class MidiProcessor:
     This representation is based on the suggested midi representation by Oore et al. (2018),
     but allows control over the time granularity.
 
-    TODO maybe remove <time_shift: 0> and <velocity: 0> events?
+    Additionally, optional <START> and <END> tokens are pre- and appended to processed midi sequences
+    to supply the model with information on when a piece starts; these tokens are added
+    only at the beginning and end of a piece, not at sliding windows in the middle of the piece.
 
-    TODO sequence start / end / padding?
-         Exposed @property for start_token and end_token?
+    TODO maybe remove <time_shift: 0> and <velocity: 0> events?
 
     FIXME bug in _handle_time_shift (see :func:`test_conversions` below)
 
@@ -56,10 +57,20 @@ class MidiProcessor:
         self._pitch_augmentation = None
         self._time_augmentation = None
 
-        num_extra_tokens = int(piece_start) + int(piece_end)
+        num_extra_tokens = int(self.piece_start) + int(self.piece_end)
         self.vocab_size = 2 * self.num_notes + self.time_granularity + self.num_velocities + num_extra_tokens
 
         self._reset_state()
+
+    @property
+    def start_token(self) -> int:
+        event_type = 'START'
+        return self._event_index(event_type)
+
+    @property
+    def end_token(self) -> int:
+        event_type = 'END'
+        return self._event_index(event_type)
 
     def _reset_state(self):
         self._events = []
@@ -88,14 +99,12 @@ class MidiProcessor:
 
         if self.piece_start:
             self._add_event('START')
-            raise NotImplementedError
 
         for msg in midi:
             self._handle_message(msg)
 
         if self.piece_end:
             self._add_event('END')
-            raise NotImplementedError
 
         return self._events
 
@@ -152,7 +161,7 @@ class MidiProcessor:
         event = Event(index, event_type, event_value)
         self._events.append(event)
 
-    def _event_index(self, event_type: str, event_value: Optional[int]) -> int:
+    def _event_index(self, event_type: str, event_value: Optional[int] = None) -> int:
         idx = 0
         if event_type == 'NOTE_ON':
             return event_value
@@ -165,12 +174,15 @@ class MidiProcessor:
         idx += self.time_granularity
         if event_type == 'VELOCITY':
             return idx + event_value
+        idx += self.num_velocities
 
-        raise NotImplementedError('No support for START / END yet. TODO')
-        if event_type == 'START':
-            pass
-        if event_type == 'END':
-            pass
+        if self.piece_start:
+            if event_type == 'START':
+                return idx
+            idx += 1
+        if self.piece_end:
+            if event_type == 'END':
+                return idx
         raise ValueError(f'Could not determine index for event <{event_type}: {event_value}>')
 
     def _augment_pitch(self, pitch: int):
@@ -243,8 +255,15 @@ class MidiProcessor:
                 events.append(Event(idx, 'VELOCITY', cat))
                 continue
             cat -= self.num_velocities
-            # TODO handle START / END
-            raise NotImplementedError
+            if self.piece_start:
+                if cat == 0:
+                    events.append(Event(idx, 'START'))
+                    continue
+                cat -= 1
+            if self.piece_end:
+                if cat == 0:
+                    events.append(Event(idx, 'END'))
+                    continue
             raise ValueError(f'Event index ({idx}) cannot be larger than vocab_size ({self.vocab_size})')
         return events
 
@@ -259,7 +278,7 @@ class Event:
     before and after a musical piece. (See :class:`MidiProcessor`)
     """
 
-    def __init__(self, index: int, event_type: str, event_value: Optional[int]):
+    def __init__(self, index: int, event_type: str, event_value: Optional[int] = None):
         self.index = index
         self.type = event_type
         self.value = event_value
@@ -301,7 +320,7 @@ def test_conversions(path: str, midi_processor: MidiProcessor):
 
 def main():
     path = '../datasets/maestro/maestro-v3.0.0/2008/MIDI-Unprocessed_01_R1_2008_01-04_ORIG_MID--AUDIO_01_R1_2008_wav--1.midi'
-    midi_processor = MidiProcessor(100, False, False)
+    midi_processor = MidiProcessor(time_granularity=100, piece_start=True, piece_end=True)
     test_conversions(path, midi_processor)
 
 
