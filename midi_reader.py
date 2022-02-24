@@ -8,10 +8,18 @@ import mido
 
 
 class MidiProcessor:
-    """TODO
+    """Class for generating tokens from a midi file and turning tokens back into a midi file.
+
+    A MidiProcessor can parse midi files into an event-based representation.
+    This representation is based on the suggested midi representation by Oore et al. (2018),
+    but allows control over the time granularity.
+
     TODO maybe remove <time_shift: 0> and <velocity: 0> events?
 
     TODO sequence start / end / padding?
+         Exposed @property for start_token and end_token?
+
+    FIXME bug in _handle_time_shift (see :func:`test_conversions` below)
 
     Turn a midi file into tokens:
     -> load midi file from disk
@@ -36,8 +44,8 @@ class MidiProcessor:
         """Create a MidiProcessor with specific settings.
 
         :param time_granularity: Size of smallest time unit, per second.
-        A time_granularity of 100 corresponds to 1s / 100 = 10ms increments,
-        and time_granularity of 125 corresponds to 1s / 125 = 8ms increments.
+        A time_granularity of 100 corresponds to 1s / 100 = 10ms increments, as used by Huang et al. (2018)
+        and time_granularity of 125 corresponds to 1s / 125 = 8ms increments, as used by Oore et al. (2018).
 
         :param piece_start: Whether to append a <START> event before the sequence
         :param piece_end: Whether to append an <END> event after the sequence
@@ -197,7 +205,7 @@ class MidiProcessor:
                                           time=ticks_elapsed))
                 ticks_elapsed = 0
             elif event.type == 'TIME_SHIFT':
-                ticks_elapsed += int(event.value / self.time_granularity * 1042)  # TODO which number here?
+                ticks_elapsed += int(event.value / self.time_granularity * 956)  # TODO which number here?
             elif event.type == 'VELOCITY':
                 current_velocity = event.value * 4
             elif event.type == 'START' or event.type == 'END':  # TODO stop sample on generated <END> ?
@@ -269,220 +277,32 @@ class Event:
         return False
 
 
-# class Event:
-#     """
-#     models the 413 events that make up the performance_rnn vocabulary
-#     """
-# 
-#     vocab_size = 128 + 128 + 100 + 32
-# 
-#     def __init__(self,
-#                  message_type: str,
-#                  message_value: int):
-#         # sanity check first
-#         if message_type == 'NOTE_ON':
-#             assert 0 <= message_value < 128
-#         elif message_type == 'NOTE_OFF':
-#             assert 0 <= message_value < 128
-#         elif message_type == 'TIME_SHIFT':
-#             assert 0 <= message_value < 100
-#         elif message_type == 'VELOCITY':
-#             assert 0 <= message_value < 32
-#         else:
-#             raise ValueError
-# 
-#         self.type = message_type
-#         self.value = message_value
-# 
-#     def __repr__(self):
-#         return f'<{self.type.lower()}: {self.value}>'
-# 
-#     @property
-#     def category(self) -> int:
-#         """
-#         The category represents an event by a single unique integer.
-#         """
-#         if self.type == 'NOTE_ON':
-#             return self.value
-#         elif self.type == 'NOTE_OFF':
-#             return 128 + self.value
-#         elif self.type == 'TIME_SHIFT':
-#             return 128 + 128 + self.value
-#         elif self.type == 'VELOCITY':
-#             return 128 + 128 + 100 + self.value
-#         raise ValueError
-# 
-#     def __eq__(self, other) -> bool:
-#         if isinstance(other, Event):
-#             return self.category == other.category
-#         return False
-# 
-#     @staticmethod
-#     def from_category(cat) -> 'Event':
-#         cat = int(cat)  # cast from possible tensor or numpy int types
-#         if cat < 0:
-#             raise ValueError('Event category cannot be negative')
-#         if cat < 128:
-#             return Event('NOTE_ON', cat)
-#         cat -= 128
-#         if cat < 128:
-#             return Event('NOTE_OFF', cat)
-#         cat -= 128
-#         if cat < 100:
-#             return Event('TIME_SHIFT', cat)
-#         cat -= 100
-#         if cat < 32:
-#             return Event('VELOCITY', cat)
-#         raise ValueError(f'Event category should be less than {128*2+100+32}')
-# 
-#     @staticmethod
-#     def from_elapsed(seconds: float) -> List['Event']:
-#         """
-#         Returns a list of time shifts corresponding to waiting {seconds}s.
-#         """
-#         time_shifts = []
-#         # Quantize the elapsed time
-#         steps: int = round(seconds * 100)
-#         while steps > 0:
-#             to_add = min(99, steps)
-#             time_shifts.append(Event('TIME_SHIFT', to_add))
-#             steps -= to_add
-#         return time_shifts
-
-
-# def midi_to_events(midi: mido.MidiFile, augment_pitch: int = 0, augment_time: float = 1.0) -> List[Event]:
-#     """
-#     Parse a MidiFile to obtain a list of Events
-#     Set augment_pitch to augment by a number of semitones,
-#     set augment_time as event time multiplier
-#     """
-# 
-#     events = []
-#     seconds_elapsed = 0.0
-#     last_velocity = -1
-#     sustain_pedal_pressed = False
-#     sustained_notes = set()
-# 
-#     for msg in midi:
-# 
-#         seconds_elapsed += msg.time * augment_time  # augment time
-# 
-#         # Note off message (piano key released)
-#         if (msg.type == 'note_on' and msg.velocity == 0) or msg.type == 'note_off':
-#             note_value = msg.note + augment_pitch  # add pitch augmentation
-#             note_value = min(127, max(0, note_value))
-# 
-#             # Note is sustained or stopped
-#             if sustain_pedal_pressed:
-#                 sustained_notes.add(note_value)
-#             else:
-#                 events += Event.from_elapsed(seconds_elapsed)
-#                 seconds_elapsed = 0.0
-#                 events.append(Event('NOTE_OFF', note_value))
-# 
-#         # Note on message (piano key pressed)
-#         elif msg.type == 'note_on':
-#             note_value = msg.note + augment_pitch  # add pitch augmentation
-#             note_value = min(127, max(0, note_value))
-# 
-#             sustained_notes.discard(note_value)
-#             events += Event.from_elapsed(seconds_elapsed)
-#             seconds_elapsed = 0.0
-#             velo = msg.velocity // 4  # quantize velocity
-#             if velo != last_velocity:
-#                 events.append(Event('VELOCITY', velo))
-#             events.append(Event('NOTE_ON', note_value))
-# 
-#         # Sustain pedal
-#         elif msg.type == 'control_change' and msg.control == 64:
-#             # sustain on -> off
-#             if msg.value < 64 and sustain_pedal_pressed:
-#                 sustain_pedal_pressed = False
-#                 events += Event.from_elapsed(seconds_elapsed)
-#                 seconds_elapsed = 0.0
-#                 for note in sustained_notes:
-#                     events.append(Event('NOTE_OFF', note))
-#                 sustained_notes.clear()
-# 
-#             # sustain pedal off -> on
-#             elif msg.value >= 64 and not sustain_pedal_pressed:
-#                 sustain_pedal_pressed = True
-# 
-#         # Possibly to add: Damper = control 67
-#         else:
-#             pass
-# 
-#     return events
-
-
-# def events_to_midi(events: Iterable[Event]) -> mido.MidiFile:
-#     """
-#     Turn a list of events into a MIDI file
-#     For evaluating model performance
-#     """
-#     result_midi = mido.MidiFile()
-#     track = mido.MidiTrack()
-#     result_midi.tracks.append(track)
-# 
-#     ticks_elapsed = 0
-#     current_velocity = 64
-#     for event in events:
-# 
-#         if event.type == 'NOTE_ON':
-#             track.append(mido.Message('note_on',
-#                                       note=event.value,
-#                                       velocity=current_velocity,
-#                                       time=ticks_elapsed))
-#             ticks_elapsed = 0
-#         elif event.type == 'NOTE_OFF':
-#             track.append(mido.Message('note_off',
-#                                       note=event.value,
-#                                       velocity=current_velocity,
-#                                       time=ticks_elapsed))
-#             ticks_elapsed = 0
-#         elif event.type == 'TIME_SHIFT':
-#             ticks_elapsed += int(event.value / 100 * 1042)  # TODO which number here?
-#         elif event.type == 'VELOCITY':
-#             current_velocity = event.value * 4
-#         else:
-#             raise ValueError
-# 
-#     return result_midi
-
-
-def test_conversions(path):
+def test_conversions(path: str, midi_processor: MidiProcessor):
     """
     Test to check if converting an event list to midi and back to event list
-    changes the event list. It shouldn't.
+    changes the event list.
+
+    FIXME: time_shift events are not translated well, especially where there
+        are many consecutive control_change messages in the input.
+        This most likely comes from the rounding of time values
+        in MidiProcessor._handle_time_shift().
     """
     midi_before = mido.MidiFile(path)
-    events_before = midi_to_events(midi_before)
-    midi_after = events_to_midi(events_before)
-    events_after = midi_to_events(midi_after)
+    events_before = midi_processor.parse_midi(midi_before)
+    midi_after = midi_processor.events_to_midi(events_before)
+    events_after = midi_processor.parse_midi(midi_after)
 
-    # TODO test fails, probably because the TIME_SHIFTs are not translated well to midi
-    # The values differ slightly
-    assert events_before == events_after
+    assert len(events_before) == len(events_after)
+
+    for i in range(len(events_before)):
+        print(f'i: {i}\n\tbefore: {events_before[i]}\n\tafter: {events_after[i]}')
+        assert events_before[i] == events_after[i]
 
 
 def main():
     path = '../datasets/maestro/maestro-v3.0.0/2008/MIDI-Unprocessed_01_R1_2008_01-04_ORIG_MID--AUDIO_01_R1_2008_wav--1.midi'
-    midi = mido.MidiFile(path)
-    # test_conversions(path)
-    events = midi_to_events(midi)
-
-    [print(e) for e in events]
-    print(len(events))
-
-    return
-    midi = events_to_midi(events)
-
-    with mido.open_output('FLUID') as port:
-        i = 0
-        for msg in midi.play():
-            print(i, ':', msg)
-            i += 1
-            port.send(msg)
+    midi_processor = MidiProcessor(100, False, False)
+    test_conversions(path, midi_processor)
 
 
 if __name__ == '__main__':
