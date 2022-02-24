@@ -12,6 +12,16 @@ class MidiProcessor:
     TODO maybe remove <time_shift: 0> and <velocity: 0> events?
 
     TODO sequence start / end / padding?
+
+    Turn a midi file into tokens:
+    -> load midi file from disk
+    -> generate events (parse_midi)
+    -> get tokens (events_to_indices)
+
+    Turn tokens (from model) into midi file:
+    -> get tokens sampled from model
+    -> turn into events (indices_to_events)
+    -> turn into midi (events_to_midi)
     """
     num_notes = 128
     num_velocities = 32
@@ -82,7 +92,6 @@ class MidiProcessor:
         return self._events
 
     def _handle_message(self, msg):
-        print(msg)
         self._seconds_elapsed += self._augment_time(msg.time)
 
         if (msg.type == 'note_on' and msg.velocity == 0) or msg.type == 'note_off':
@@ -132,7 +141,7 @@ class MidiProcessor:
 
     def _add_event(self, event_type: str, event_value: Optional[int] = None):
         index = self._event_index(event_type, event_value)
-        event = self.EventTwoPointZero(index, event_type, event_value)  # TODO
+        event = Event(index, event_type, event_value)
         self._events.append(event)
 
     def _event_index(self, event_type: str, event_value: Optional[int]) -> int:
@@ -166,8 +175,7 @@ class MidiProcessor:
         return time
 
     def events_to_midi(self, events: List["Event"]) -> mido.MidiFile:
-        """Turn a list of events into TODO
-        """
+        """Turn a list of events into a playable midi file"""
         midi = mido.MidiFile()
         track = mido.MidiTrack()
         midi.tracks.append(track)
@@ -212,16 +220,20 @@ class MidiProcessor:
             if cat < 0:
                 raise ValueError('Event index cannot be negative')
             if cat < self.num_notes:
-                return Event(idx, 'NOTE_ON', cat)
+                events.append(Event(idx, 'NOTE_ON', cat))
+                continue
             cat -= self.num_notes
             if cat < self.num_notes:
-                return Event(idx, 'NOTE_OFF', cat)
+                events.append(Event(idx, 'NOTE_OFF', cat))
+                continue
             cat -= self.num_notes
             if cat < self.time_granularity:
-                return Event(idx, 'TIME_SHIFT', cat)
+                events.append(Event(idx, 'TIME_SHIFT', cat))
+                continue
             cat -= self.time_granularity
             if cat < self.num_velocities:
-                return Event(idx, 'VELOCITY', cat)
+                events.append(Event(idx, 'VELOCITY', cat))
+                continue
             cat -= self.num_velocities
             # TODO handle START / END
             raise NotImplementedError

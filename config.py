@@ -17,7 +17,7 @@ default_conf = {
     'sequence_length': 2048,
     'batch_size': 2,
     'augmentation': 'aug-',
-    'time_shift_ms': None,  # TODO
+    'time_granularity': 100,
     'min_stride': 512,
     'max_stride': 1024,
 

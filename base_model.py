@@ -3,14 +3,13 @@
 
 """
 import os
-import sys
 import time
 from typing import Generator
 
 import numpy as np
 import tensorflow as tf
 
-from input_loader import sequence_to_midi
+from midi_reader import MidiProcessor
 from optimizer import Optimizer
 
 PROJECT_DIR = os.path.dirname(__file__)
@@ -96,6 +95,8 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._writer = None  # Defer instantiating writer and sample subdirectories before training
         self._sample_subdir = None  # to avoid making empty subdirectories when not training
 
+        self._midi_processor = MidiProcessor(config['time_granularity'], piece_start=False, piece_end=False)
+
     def on_train_begin(self, logs=None):
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)
         log_dir = str(os.path.join('logs', self.model.name, run_time))
@@ -139,7 +140,8 @@ class TrainCallback(tf.keras.callbacks.Callback):
             # Generate sample
             music = self.model.sample_music()
             for i, seq in enumerate(music):
-                midi = sequence_to_midi(seq)
+                events = self._midi_processor.indices_to_events(seq)
+                midi = self._midi_processor.events_to_midi(events)
                 midi_path = os.path.join(os.path.join(self._sample_subdir, f'{self.model.name}_{step}_{i}.midi'))
                 midi.save(midi_path)
 
