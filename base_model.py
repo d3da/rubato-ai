@@ -9,7 +9,7 @@ from typing import Generator
 import numpy as np
 import tensorflow as tf
 
-from midi_reader import MidiProcessor
+from midi_processor import MidiProcessor
 from optimizer import Optimizer
 
 PROJECT_DIR = os.path.dirname(__file__)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from typing import Tuple, List, Iterable, Optional
 
-from midi_reader import Event, MidiProcessor
+from midi_processor import MidiProcessor
 
 import os
 import csv
