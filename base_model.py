@@ -41,10 +41,10 @@ class PerformanceModel(tf.keras.Model):
         self.input_loader = input_loader
         self.train_dir = config['train_dir']
 
-        self.batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
-        self.epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+        self._batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
+        self._epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
 
-        self.optimizer = Optimizer.create_adam_optimizer(step_counter=self.batch_ctr, **config)
+        self.optimizer = Optimizer.create_adam_optimizer(step_counter=self._batch_ctr, **config)
 
         self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
                                                       label_smoothing=config['label_smoothing'])
@@ -60,13 +60,27 @@ class PerformanceModel(tf.keras.Model):
         )
         if restore_checkpoint:
             checkpoint.restore(self.checkpoint_mgr.latest_checkpoint)
-            if self.batch_ctr.value() != 0:
-                print(f'Restored checkpoint (batch {self.batch_ctr.value()}, epoch {self.epoch_ctr.value()})')
+            if self.batch_count != 0:
+                print(f'Restored checkpoint (batch {self.batch_count}, epoch {self.epoch_count})')
             else:
                 print('Initialized model (we\'re at batch zero)')
 
         self.callbacks = [TrainCallback(**config)]
         self.load_time = time.localtime()
+
+    @property
+    def batch_count(self):
+        return self._batch_ctr.value().numpy()
+
+    @property
+    def epoch_count(self):
+        return self._epoch_ctr.value().numpy()
+
+    def increment_batch(self):
+        return self._batch_ctr.assign_add(1).value().numpy()
+
+    def increment_epoch(self):
+        return self._epoch_ctr.assign_add(1).value().numpy()
 
     def train(self, epochs: int) -> None:
         """
@@ -147,10 +161,10 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
     def on_batch_end(self, batch, logs=None):
         _batch_time = time.time() - self._batch_start_time
-        step = self.model.batch_ctr.value()
+        step = self.model.batch_count
 
         if batch == 0:
-            self.model.batch_ctr.assign_add(1)
+            self.model.increment_batch()
             return
 
         if logs is None:
@@ -178,12 +192,12 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if step % self._save_checkpoint_freq == 0:
             self.model.checkpoint_mgr.save()
 
-        self.model.batch_ctr.assign_add(1)
+        self.model.increment_batch()
 
     def on_epoch_end(self, epoch, logs=None):
-        tot_epoch = self.model.epoch_ctr.assign_add(1).value()
+        tot_epoch = self.model.increment_epoch()
 
-        print(f'\nTotal steps: {self.model.batch_ctr.value().numpy()}')
+        print(f'\nTotal steps: {self.model.batch_count}')
         print(f'Total epochs: {tot_epoch}\n')
 
         self.model.checkpoint_mgr.save()
