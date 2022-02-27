@@ -35,6 +35,7 @@ default_conf = {
     # Model settings: (Transformer)
     'num_layers': 8,
     'drop_rate': 0.2,
+    'layernorm_eps': 1e-6,
     'embed_dim': 512,
     'attn_dim': 384,
     'attn_heads': 8,

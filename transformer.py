@@ -162,8 +162,8 @@ class TransformerBlock(tf.keras.layers.Layer):
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(config['ff_dim'], activation='relu'),
             tf.keras.layers.Dense(config['embed_dim'])])
-        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
-        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm1 = tf.keras.layers.LayerNormalization(epsilon=config['layernorm_eps'])
+        self.layernorm2 = tf.keras.layers.LayerNormalization(epsilon=config['layernorm_eps'])
         self.dropout1 = tf.keras.layers.Dropout(config['drop_rate'])
         self.dropout2 = tf.keras.layers.Dropout(config['drop_rate'])
 
