@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from base_model import PerformanceModel
 from config import load_model_from_config, default_conf, PROJECT_DIR
-from input_loader import sequence_to_midi
+from midi_processor import MidiProcessor
 
 
 def load_averaged_weights(model: PerformanceModel, last_n=20) -> None:
@@ -46,6 +46,7 @@ def load_averaged_weights(model: PerformanceModel, last_n=20) -> None:
 if __name__ == '__main__':
     model = load_model_from_config(default_conf)
     load_averaged_weights(model)
+    midi_processor = MidiProcessor(**default_conf)
     music = model.sample_music(sample_length=1024, temperature=0.8, verbose=True)
 
     midi_dir = os.path.join(PROJECT_DIR, 'samples')
@@ -53,7 +54,8 @@ if __name__ == '__main__':
         os.mkdir(midi_dir)
 
     for i, seq in enumerate(music):
-        midi = sequence_to_midi(seq)
+        events = midi_processor.indices_to_events(seq)
+        midi = midi_processor.events_to_midi(events)
         midi_path = os.path.join(midi_dir, f'{model.name}_avg_{i}.midi')
         midi.save(midi_path)
     exit()

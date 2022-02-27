@@ -41,7 +41,8 @@ class MidiProcessor:
     def __init__(self,
                  time_granularity: int = 100,
                  piece_start: bool = False,
-                 piece_end: bool = False):
+                 piece_end: bool = False,
+                 **kwargs):
         """Create a MidiProcessor with specific settings.
 
         :param time_granularity: Size of smallest time unit, per second.
