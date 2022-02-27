@@ -158,15 +158,7 @@ class TransformerBlock(tf.keras.layers.Layer):
 
     def __init__(self, name='transformer_block', **config):
         super().__init__(name=name)
-
-        if config['attn_type'] == 'absolute':
-            self.attn = MultiHeadAttention(**config)
-        elif config['attn_type'] == 'relative':
-            self.attn = RelativeGlobalAttention(**config)
-        else:
-            raise ValueError('Unsupported config.attn_type,'
-                             'please select either \'absolute\' or \'relative\'.')
-
+        self.attn = self._attn_layer_from_config(**config)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(config['ff_dim'], activation='relu'),
             tf.keras.layers.Dense(config['embed_dim'])])
@@ -188,6 +180,15 @@ class TransformerBlock(tf.keras.layers.Layer):
         ffn_output = self.ffn(attn_output, training=training)
         ffn_output = self.dropout2(ffn_output, training=training)
         return self.layernorm2(attn_output + ffn_output, training=training)
+
+    @staticmethod
+    def _attn_layer_from_config(**config):
+        if config['attn_type'] == 'absolute':
+            return MultiHeadAttention(**config)
+        if config['attn_type'] == 'relative':
+            return RelativeGlobalAttention(**config)
+        raise ValueError('Unsupported config.attn_type,'
+                         'please select either \'absolute\' or \'relative\'.')
 
 
 class PositionalEncoding(tf.keras.layers.Layer):
