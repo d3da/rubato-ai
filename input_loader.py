@@ -242,7 +242,7 @@ class PerformanceInputLoader:
 def check_dataset(base_path: str, csv_path: str):
     if not (os.path.exists(base_path) and os.path.exists(csv_path)):
         raise FileNotFoundError(
-            'You can obtain a copy of the MAESTRO dataset'
+            'You can obtain a copy of the MAESTRO dataset '
             'at https://magenta.tensorflow.org/datasets/maestro#v300')
 
 

@@ -1,10 +1,10 @@
 .idea/
 __pycache__/
 ckpt/
-data/
 logs/
 train_samples/
 checkpoints/
 *.bak
-
 cherrypick/
+data/*
+!data/get_maestro.sh
