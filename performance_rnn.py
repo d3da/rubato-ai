@@ -18,7 +18,7 @@ class PerformanceRNNModel(PerformanceModel):
     vocab_size: 413
     batch_size: 64
     learn_rate: 1e-3
-    
+
     Input   -> (64, 512a)
     One_Hot -> (64, 512a, 413)
     LSTM    -> (64, 512a, 512b)

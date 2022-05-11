@@ -6,6 +6,17 @@ import tensorflow as tf
 class Optimizer:
     @staticmethod
     def create_adam_optimizer(step_counter: Optional[tf.Variable], **config):
+        """
+        Adam optimizer with optional 'Noam' scheduling
+
+        Config parameters used:
+            'learning_rate' Learning rate for Adam optimizer or None for Noam schedule
+            'warmup_steps'  Warmup steps for Noam schedule
+            'adam_beta1'    Beta1 passed to Adam optimizer
+            'adam_beta2'    Beta2 passed to Adam optimizer
+            'adam_eps'      Epsilon passed to Adam optimizer
+            'embed_dim'
+        """
         adam_kwargs = dict()  # arguments for tf.keras.optimizers.Adam
 
         learning_rate = config['learning_rate']
@@ -31,4 +42,3 @@ class Optimizer:
         adam_kwargs['epsilon'] = config.get('adam_eps')
 
         return tf.keras.optimizers.Adam(**adam_kwargs)
-

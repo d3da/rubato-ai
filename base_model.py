@@ -16,6 +16,22 @@ PROJECT_DIR = os.path.dirname(__file__)
 
 
 class PerformanceModel(tf.keras.Model):
+    """
+    Base class inherited by TransformerModel and PerformanceRNNModel.
+
+    This class handles the following:
+        - Setup the optimizer
+        - Run the train() loop
+        - Keep persistent batch / epoch counters
+        - Save checkpoints
+
+    Config parameters used:
+        All parameters used by Optimizer
+        All parameters used by TrainCallback
+        'train_dir'         Path for saving checkpoints, tensorboard logs and samples
+        'kept_checkpoints'  Number of checkpoints to save in checkpoint directory
+        'label_smoothing'   Label smoothing to apply
+    """
     def __init__(self,
                  model_name,
                  input_loader,
@@ -77,6 +93,16 @@ class TrainCallback(tf.keras.callbacks.Callback):
         that persists between checkpoint saves/loads, allowing
         tensorboard graphs to span multiple runs.
 
+    TODO this class has become bloated and should be split up into multiple Callbacks
+
+    Config parameters used:
+        'train_dir'                 Path for saving checkpoints, tensorboard logs and samples
+        'tensorboard_update_freq'   Number of batches between tensorboard updates
+        'sample_midi_freq'          Batches between saving midi sample to disk
+        'save_checkpoint_freq'      Batches between saving checkpoint to disk
+        'validation_freq'           Batches between evaluating validation data
+        'validation_batches'        Batches to evaluate validation data for
+        'time_granularity', 'piece_start', 'piece_end'
     """
     def __init__(self, **config):
         super().__init__()
@@ -251,4 +277,3 @@ if __name__ == '__main__':
     # model.summary()
     # model.train(1)
     # sys.exit()
-

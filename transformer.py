@@ -29,20 +29,26 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
 
 class MultiHeadAttention(tf.keras.layers.Layer):
     """
-    Vaswani et al. (2017)
+    Masked MultiHeadAttention as described in Vaswani et al. (2017)
 
     https://nn.labml.ai/transformers/mha.html
 
     Adjusted to allow for a query/key dimension (_d_k) that differs from the
         value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
+
+    Config parameters used:
+        'attn_heads'        Number of attention heads
+        'embed_dim'         Dimension of output and 'value' projection
+        'attn_dim'          Dimension of 'key' projection
+        'sequence_length'   Maximum input sequence length
     """
     def __init__(self, **config):
         super().__init__()
         self._num_heads = config['attn_heads']
         self._embed_dim = config['embed_dim']
-        self._max_seq_len = config['sequence_length']
         self._attn_dim = config.get('attn_dim')
+        self._max_seq_len = config['sequence_length']
         if self._attn_dim is None:
             self._attn_dim = self._embed_dim
 
@@ -101,6 +107,10 @@ class RelativeGlobalAttention(MultiHeadAttention):
         between queries and keys is added to the dot-product attention.
 
     Distances further than max_relative_pos are clipped
+
+    Config parameters used:
+        All parameters used in MultiHeadAttention
+        'max_relative_pos'      Clipping distance of relative positional encodings
     """
     def __init__(self, **config):
         super().__init__(**config)
@@ -155,6 +165,22 @@ class RelativeGlobalAttention(MultiHeadAttention):
 
 
 class TransformerBlock(tf.keras.layers.Layer):
+    """
+    Transformer decoder layer consisting of one sublayer of (masked) MHA followed by two dense sublayers.
+    Applies dropout and layer normalization as described in Vaswani et al. 2017.
+
+    The sequence-to-sequence attention (using an encoder's output) is left out,
+    since we are using the decoder only.
+
+    Config parameters used:
+        All parameters used by MultiHeadAttention
+        All parameters of RelativeGlobalAttention if selected using config.attn_type
+        'attn_type'     Set to 'absolute' for standard MHA, 'relative' for relative attention.
+        'ff_dim'        Output dimension of the first dense sublayer
+        'embed_dim'     Output dimension
+        'layernorm_eps' Epsilon value used in LayerNorm sublayer
+        'drop_rate'     Dropout rate to apply after attention and last dense sublayer
+    """
 
     def __init__(self, name='transformer_block', **config):
         super().__init__(name=name)
@@ -246,6 +272,26 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
 
 
 class TransformerModel(PerformanceModel):
+    """
+    Transformer decoder model based on Vaswani et al. 2017.
+    Consists of an input embedder, positional encodings, transformer layers and output embedding.
+
+    The input layer takes in a sequence and converts it into
+        one-hot encoding before running it through the model,
+        so you don't have to do that in some other place.
+    The model outputs logits (the final softmax is omitted).
+
+    The input and output embeddings use the same weights but transposed.
+    This was described in the original Transformer paper but not present in every implementation.
+
+    Config parameters used:
+        All parameters used by superclass PerformanceModel
+        All parameters used by TransformerBlock
+        'sequence_length'   Maximum input sequence length
+        'embed_dim'         Hidden dimension size
+        'drop_rate'         Dropout rate to use after input layer and in TransformerBlock
+    """
+
     def __init__(self,
                  model_name,
                  input_loader,
