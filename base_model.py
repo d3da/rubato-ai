@@ -33,10 +33,6 @@ class PerformanceModel(tf.keras.Model):
         - Run the train() loop
         - Keep persistent batch / epoch counters
         - Save checkpoints
-
-    Config parameters used:
-        All parameters used by Optimizer
-        All parameters used by TrainCallback
     """
     def __init__(self,
                  model_name,
@@ -103,6 +99,28 @@ class PerformanceModel(tf.keras.Model):
             print(f'Finished training epoch {e+1}/{epochs}.')
 
 
+@register_param('train_dir', 'str or os.PathLike', PROJECT_DIR,
+                'Path for saving checkpoints, tensorboard logs and samples')
+@register_param('tensorboard_update_freq', 'int', 50,
+                'Number of batches between tensorboard updates')
+@register_param('sample_midi_freq', 'int', 250,
+                'Batches between saving midi sample to disk')
+@register_param('sample_midi_length', 'int', 512,
+                'Number of tokens to sample')
+@register_param('validation_freq', 'int', 1000,
+                'Batches between evaluating validation data')
+@register_param('validation_batches', 'int', 25,
+                'Batches to evaluate validation data for')
+@register_param('save_checkpoint_freq', 'int', 500,
+                'Batches between saving checkpoint to disk')
+@register_param('kept_checkpoints', 'int', 50,
+                'Number of checkpoints to save in checkpoint directory')
+@register_param('time_granularity', 'int', 100,
+                'Number of midi processor <TIME_SHIFT> events per second')
+@register_param('piece_start', 'bool', True,
+                'Whether to prepend <START> events to sequences')
+@register_param('piece_end', 'bool', True,
+                'Whether to append <END> events to sequences')
 class TrainCallback(tf.keras.callbacks.Callback):
     """
     Custom callback that provides "improvements" over the default
@@ -114,15 +132,6 @@ class TrainCallback(tf.keras.callbacks.Callback):
         tensorboard graphs to span multiple runs.
 
     TODO this class has become bloated and should be split up into multiple Callbacks
-
-    Config parameters used:
-        'train_dir'                 Path for saving checkpoints, tensorboard logs and samples
-        'tensorboard_update_freq'   Number of batches between tensorboard updates
-        'sample_midi_freq'          Batches between saving midi sample to disk
-        'save_checkpoint_freq'      Batches between saving checkpoint to disk
-        'validation_freq'           Batches between evaluating validation data
-        'validation_batches'        Batches to evaluate validation data for
-        'time_granularity', 'piece_start', 'piece_end'
     """
     def __init__(self, **config):
         super().__init__()
