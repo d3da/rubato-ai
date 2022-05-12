@@ -41,6 +41,9 @@ CONFIG_REG_BY_CLASS_NAME: Dict[str, ConfParam] = {}
 # Set of classes created by key class during initialization (by name)
 CONFIG_REG_CLASS_CREATES: Dict[str, Set[str]] = {}
 
+# Maps class_name -> { optional parameter name : { option value : linked classname }}
+CONFIG_REG_OPTIONAL_CREATES: Dict[str, Dict[str, Dict[str, str]]] = {}
+
 
 def register_param(name: str,
                    conf_type: str,
@@ -55,7 +58,7 @@ def register_param(name: str,
     TODO change config value to default if not present (warn the user)
     """
 
-    def wrap_class(cls):
+    def _wrap_class(cls):
         class_name = cls.__name__
         print(f'{class_name}: Registering config parameter \'{name}\'')
         print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
@@ -67,17 +70,34 @@ def register_param(name: str,
 
         return cls
 
-    return wrap_class
+    return _wrap_class
 
 
 def register_creates(created_classes: Set[str]):
     """"""
-    def wrap_class(cls):
+    def _wrap_class(cls):
         class_name = cls.__name__
-        print(f'{class_name}: Registering link to {created_classes}')
+        print(f'{class_name}: Registering link to {created_classes}\n')
 
         CONFIG_REG_CLASS_CREATES[class_name] = created_classes
         return cls
 
-    return wrap_class
+    return _wrap_class
 
+def register_optional_creates(choice_param: str,
+                              choice_options: Dict[str, str]):
+    """"""
+    def _wrap_class(cls):
+        class_name = cls.__name__
+        print(f'{class_name}: Registering optional link under parameter \'{choice_param}\'')
+        for name, class_link in choice_options.items():
+            print(f'\t\'{name}\' -> {class_link}')
+        print()
+
+        if class_name not in CONFIG_REG_OPTIONAL_CREATES:
+            CONFIG_REG_OPTIONAL_CREATES[class_name] = {}
+        CONFIG_REG_OPTIONAL_CREATES[class_name][choice_param] = choice_options
+        return cls
+
+    return _wrap_class
+    

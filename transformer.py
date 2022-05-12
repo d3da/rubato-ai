@@ -9,6 +9,8 @@ import tensorflow as tf
 
 from base_model import PerformanceModel
 
+from registry import register_param, register_creates, register_optional_creates
+
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     """
@@ -27,6 +29,14 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     return tf.tile(mask, mult)
 
 
+@register_param('attn_heads', 'int', 8,
+                'Number of attention heads')
+@register_param('embed_dim', 'int', 512,
+                'Dimension of output and \'value\' projection')
+@register_param('attn_dim', 'int', 384,
+                'Dimension of \'key\' projection')
+@register_param('sequence_length', 'int', 2048,
+                'Maximum input sequence length')
 class MultiHeadAttention(tf.keras.layers.Layer):
     """
     Masked MultiHeadAttention as described in Vaswani et al. (2017)
@@ -36,12 +46,6 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     Adjusted to allow for a query/key dimension (_d_k) that differs from the
         value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
-
-    Config parameters used:
-        'attn_heads'        Number of attention heads
-        'embed_dim'         Dimension of output and 'value' projection
-        'attn_dim'          Dimension of 'key' projection
-        'sequence_length'   Maximum input sequence length
     """
     def __init__(self, **config):
         super().__init__()
@@ -99,6 +103,8 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return attn_score
 
 
+@register_param('max_relative_pos', 'int', 1024,
+                'Clipping distance of relative positional encodings')
 class RelativeGlobalAttention(MultiHeadAttention):
     """
     Huang et al. (2018)
@@ -107,10 +113,6 @@ class RelativeGlobalAttention(MultiHeadAttention):
         between queries and keys is added to the dot-product attention.
 
     Distances further than max_relative_pos are clipped
-
-    Config parameters used:
-        All parameters used in MultiHeadAttention
-        'max_relative_pos'      Clipping distance of relative positional encodings
     """
     def __init__(self, **config):
         super().__init__(**config)
@@ -164,6 +166,18 @@ class RelativeGlobalAttention(MultiHeadAttention):
         return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
 
 
+@register_optional_creates('attn_type', {
+    'absolute': 'MultiHeadAttention',
+    'relative': 'RelativeGlobalAttention'
+})
+@register_param('ff_dim', 'int', 1024,
+                'Output dimension of the first dense sublayer')
+@register_param('embed_dim', 'int', 512,
+                'Dimension of output and \'value\' projection')
+@register_param('layernorm_eps', 'float', 1e-6,
+                'Epsilon value used in LayerNorm sublayer')
+@register_param('drop_rate', 'float', 0.2,
+                'Dropout rate to apply after attention and last dense sublayer')
 class TransformerBlock(tf.keras.layers.Layer):
     """
     Transformer decoder layer consisting of one sublayer of (masked) MHA followed by two dense sublayers.
@@ -171,15 +185,6 @@ class TransformerBlock(tf.keras.layers.Layer):
 
     The sequence-to-sequence attention (using an encoder's output) is left out,
     since we are using the decoder only.
-
-    Config parameters used:
-        All parameters used by MultiHeadAttention
-        All parameters of RelativeGlobalAttention if selected using config.attn_type
-        'attn_type'     Set to 'absolute' for standard MHA, 'relative' for relative attention.
-        'ff_dim'        Output dimension of the first dense sublayer
-        'embed_dim'     Output dimension
-        'layernorm_eps' Epsilon value used in LayerNorm sublayer
-        'drop_rate'     Dropout rate to apply after attention and last dense sublayer
     """
 
     def __init__(self, name='transformer_block', **config):
@@ -271,6 +276,15 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
         return tf.einsum('bsm,tm->bst', inputs, self.emb_matrix)
 
 
+@register_param('sequence_length', 'int', 2048,
+                'Maximum input sequence length')
+@register_param('embed_dim', 'int', 512,
+                'Hidden dimension size')
+@register_param('drop_rate', 'float', 0.2,
+                'Dropout rate to use after input layer and in TransformerBlock')
+@register_param('num_layers', 'int', 8,
+                'Number of stacked TransformerBlock layers to use')
+@register_creates({'TransformerBlock'})
 class TransformerModel(PerformanceModel):
     """
     Transformer decoder model based on Vaswani et al. 2017.
@@ -283,13 +297,6 @@ class TransformerModel(PerformanceModel):
 
     The input and output embeddings use the same weights but transposed.
     This was described in the original Transformer paper but not present in every implementation.
-
-    Config parameters used:
-        All parameters used by superclass PerformanceModel
-        All parameters used by TransformerBlock
-        'sequence_length'   Maximum input sequence length
-        'embed_dim'         Hidden dimension size
-        'drop_rate'         Dropout rate to use after input layer and in TransformerBlock
     """
 
     def __init__(self,
