@@ -12,7 +12,7 @@ import tensorflow as tf
 from midi_processor import MidiProcessor
 from optimizer import Optimizer
 
-from registry import register_param
+from registry import register_param, register_creates
 
 PROJECT_DIR = os.path.dirname(__file__)
 
@@ -23,6 +23,7 @@ PROJECT_DIR = os.path.dirname(__file__)
                 'Number of checkpoints to save in checkpoint directory')
 @register_param('label_smoothing', 'float', 0.1,
                 'Amount of label smoothing regularization to apply to training examples')
+@register_creates({'Optimizer', 'TrainCallback'})
 class PerformanceModel(tf.keras.Model):
     """
     Base class inherited by TransformerModel and PerformanceRNNModel.

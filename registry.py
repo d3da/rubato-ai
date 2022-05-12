@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+"""
+Keep a global registry of hyperparameters used.
+
+Register a parameter directly accessed in a class by decorating the class with @register_param.
+If a class creates other classes (with their own parameters) in its __init__ method, decorate the class with @register_creates.
+"""
 from typing import Dict, Tuple, Optional, Set
 from functools import wraps
-
-# from base_model import PerformanceModel
 
 
 class ConfParam:
@@ -31,11 +35,11 @@ class ConfParam:
 # All config parameters, accessed by parameter name
 CONFIG_REG_BY_NAME: Dict[str, ConfParam] = {}
 
-# All config parameters, accessed by class
+# All config parameters, accessed by class name
 CONFIG_REG_BY_CLASS_NAME: Dict[str, ConfParam] = {}
 
-# how do i explain this..
-# CONFIG_REG_CLASS_CREATES: Dict[str, Set[str]] = {}
+# Set of classes created by key class during initialization (by name)
+CONFIG_REG_CLASS_CREATES: Dict[str, Set[str]] = {}
 
 
 def register_param(name: str,
@@ -66,5 +70,14 @@ def register_param(name: str,
     return wrap_class
 
 
-# def register_creates(created_classes: Set[str]):
-    # pass
+def register_creates(created_classes: Set[str]):
+    """"""
+    def wrap_class(cls):
+        class_name = cls.__name__
+        print(f'{class_name}: Registering link to {created_classes}')
+
+        CONFIG_REG_CLASS_CREATES[class_name] = created_classes
+        return cls
+
+    return wrap_class
+
