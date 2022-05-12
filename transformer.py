@@ -105,6 +105,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 @register_param('max_relative_pos', 'int', 1024,
                 'Clipping distance of relative positional encodings')
+@register_creates({'MultiHeadAttention'})
 class RelativeGlobalAttention(MultiHeadAttention):
     """
     Huang et al. (2018)
@@ -284,7 +285,7 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
                 'Dropout rate to use after input layer and in TransformerBlock')
 @register_param('num_layers', 'int', 8,
                 'Number of stacked TransformerBlock layers to use')
-@register_creates({'TransformerBlock'})
+@register_creates({'PerformanceModel', 'TransformerBlock'})
 class TransformerModel(PerformanceModel):
     """
     Transformer decoder model based on Vaswani et al. 2017.

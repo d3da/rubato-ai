@@ -10,6 +10,11 @@ from typing import Dict, Set
 """
 TODO register params in: optimizer.py, input_loader, midi_processor, performance_rnn.py
 TODO make the register a class
+
+TODO register class name, description, default of choice parameters
+
+TODO handle superclasses separately from creates classes
+TODD make start class that creates PerformanceRNNModel or TransformerModel
 """
 
 class ConfParam:
@@ -32,7 +37,7 @@ CONFIG_REG_BY_NAME: Dict[str, Set[ConfParam]] = {}
 # All config parameters, accessed by class name
 CONFIG_REG_BY_CLASS_NAME: Dict[str, Set[ConfParam]] = {}
 
-# Set of classes created by key class during initialization (by name)
+# Set of classes created by key class during initialization, including possibly a superclass
 CONFIG_REG_CLASS_CREATES: Dict[str, Set[str]] = {}
 
 # Maps class_name -> { optional parameter name : { option value : linked classname }}
@@ -54,8 +59,8 @@ def register_param(name: str,
 
     def _wrap_class(cls):
         class_name = cls.__name__
-        print(f'{class_name}: Registering config parameter \'{name}\'')
-        print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
+        # print(f'{class_name}: Registering config parameter \'{name}\'')
+        # print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
 
         param = ConfParam(class_name, name, conf_type, default, description)
         # TODO check if param already exists

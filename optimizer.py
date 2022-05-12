@@ -1,21 +1,23 @@
 from typing import Optional
 
+from registry import register_param
+
 import tensorflow as tf
 
 
+# TODO optional creates kinda thing
+@register_param('learning_rate', 'Optional[float]', None,
+                'Learning rate for Adam optimizer or None for Noam schedule')
+@register_param('warmup_steps', 'int', 4000, 'Warmup steps for Noam schedule')
+@register_param('adam_beta1', 'float', 0.9, 'Beta1 passed to Adam optimizer')
+@register_param('adam_beta2', 'float', 0.98, 'Beta2 passed to Adam optimizer')
+@register_param('adam_eps', 'float', 1e-9, 'Epsilon passed to Adam optimizer')
+@register_param('embed_dim', 'int', 512, 'Model hidden dimension size')
 class Optimizer:
     @staticmethod
     def create_adam_optimizer(step_counter: Optional[tf.Variable], **config):
         """
         Adam optimizer with optional 'Noam' scheduling
-
-        Config parameters used:
-            'learning_rate' Learning rate for Adam optimizer or None for Noam schedule
-            'warmup_steps'  Warmup steps for Noam schedule
-            'adam_beta1'    Beta1 passed to Adam optimizer
-            'adam_beta2'    Beta2 passed to Adam optimizer
-            'adam_eps'      Epsilon passed to Adam optimizer
-            'embed_dim'
         """
         adam_kwargs = dict()  # arguments for tf.keras.optimizers.Adam
 
