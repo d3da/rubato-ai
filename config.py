@@ -8,6 +8,7 @@ from base_model import PerformanceModel
 from input_loader import PerformanceInputLoader
 from performance_rnn import PerformanceRNNModel
 from transformer import TransformerModel
+from config_check import check_config
 
 PROJECT_DIR = os.path.dirname(__file__)
 
@@ -102,5 +103,6 @@ def load_model_from_config(config: Dict[str, Any]) -> PerformanceModel:
 
 
 if __name__ == '__main__':
+    check_config('TransformerModel', None, **default_conf)
     model = load_model_from_config(default_conf)
     model.train(10)

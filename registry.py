@@ -3,11 +3,14 @@
 Keep a global registry of hyperparameters used.
 
 Register a parameter directly accessed in a class by decorating the class with @register_param.
-If a class creates other classes (with their own parameters) in its __init__ method, decorate the class with @register_creates.
+If a class creates other classes (having their own parameters) in its __init__ method, decorate the class with @register_creates.
 """
-from typing import Dict, Tuple, Optional, Set
-from functools import wraps
+from typing import Dict, Set
 
+"""
+TODO register params in: optimizer.py, input_loader, midi_processor, performance_rnn.py
+TODO make the register a class
+"""
 
 class ConfParam:
     def __init__(self,
@@ -22,21 +25,12 @@ class ConfParam:
         self.default = default
         self.description = description
 
-    # def __eq__(self, o):
-    #     """Class names are ignored in the equality check"""
-    #     if isinstance(o, ConfParam):
-    #         return self.name == o.name and \
-    #                self.conf_type == o.conf_type and \
-    #                self.default == o.default and \
-    #                self.description == o.description
-
-    #     return False
 
 # All config parameters, accessed by parameter name
-CONFIG_REG_BY_NAME: Dict[str, ConfParam] = {}
+CONFIG_REG_BY_NAME: Dict[str, Set[ConfParam]] = {}
 
 # All config parameters, accessed by class name
-CONFIG_REG_BY_CLASS_NAME: Dict[str, ConfParam] = {}
+CONFIG_REG_BY_CLASS_NAME: Dict[str, Set[ConfParam]] = {}
 
 # Set of classes created by key class during initialization (by name)
 CONFIG_REG_CLASS_CREATES: Dict[str, Set[str]] = {}
@@ -65,8 +59,13 @@ def register_param(name: str,
 
         param = ConfParam(class_name, name, conf_type, default, description)
         # TODO check if param already exists
-        CONFIG_REG_BY_NAME[name] = param
-        CONFIG_REG_BY_CLASS_NAME[class_name] = param
+        if name not in CONFIG_REG_BY_NAME:
+            CONFIG_REG_BY_NAME[name] = set()
+        CONFIG_REG_BY_NAME[name].add(param)
+
+        if class_name not in CONFIG_REG_BY_CLASS_NAME:
+            CONFIG_REG_BY_CLASS_NAME[class_name] = set()
+        CONFIG_REG_BY_CLASS_NAME[class_name].add(param)
 
         return cls
 
