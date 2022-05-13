@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# Download v3.0.0 of the maestro dataset from magenta.
+# requires wget and unzip installed
 set -e
 
 cd $( dirname $0 )
