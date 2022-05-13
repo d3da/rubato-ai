@@ -45,8 +45,10 @@ default_conf = {
     'max_relative_pos': 1024,  # TODO subparam?
 
 
-    # Optimizer settings
-    'learning_rate': None,
+    # Optimizer settings + label smoothing
+    # 'learning_rate_schedule': 'standard',
+    # 'learning_rate': 1e-3,
+    'learning_rate_schedule': 'noam',
     'warmup_steps': 4000,
     'adam_beta1': 0.9,
     'adam_beta2': 0.98,

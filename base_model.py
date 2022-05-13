@@ -46,7 +46,7 @@ class PerformanceModel(tf.keras.Model):
         self._batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self._epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
 
-        self.optimizer = Optimizer.create_adam_optimizer(step_counter=self._batch_ctr, **config)
+        self.optimizer = Optimizer.create(step_counter=self._batch_ctr, **config)
 
         self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
                                                       label_smoothing=config['label_smoothing'])
