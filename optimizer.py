@@ -40,8 +40,8 @@ class Optimizer:
         raise ValueError('config.learning_rate_schedule must be either \'standard\' or \'noam\'')
 
 
-@register_param('warmup_steps', 'int', 4000, 'Warmup steps for Noam schedule')
-@register_param('embed_dim', 'int', 512, 'Model hidden dimension size')
+@register_param('warmup_steps', int, 4000, 'Warmup steps for Noam schedule')
+@register_param('embed_dim', int, 512, 'Model hidden dimension size')
 class NoamLearningRateSchedule:
     """Noam Shazeer's learning rate schedule as proposed in Vaswani et al. 2017."""
     def __init__(self, step_counter: tf.Variable, **config):
@@ -55,15 +55,15 @@ class NoamLearningRateSchedule:
         return self._embed_dim ** (-0.5) * min_part
 
 
-@register_param('learning_rate', 'float', 1e-3, 'Adam optimizer learning rate')
+@register_param('learning_rate', float, 1e-3, 'Adam optimizer learning rate')
 class StandardLearningRateSchedule:
     """Dummy class used to register the optional learning rate hyperparameter"""
     pass
 
 
-@register_param('adam_beta1', 'float', 0.9, 'Beta1 parameter of Adam optimizer')
-@register_param('adam_beta2', 'float', 0.98, 'Beta2 parameter of Adam optimizer')
-@register_param('adam_eps', 'float', 1e-9, 'Epsilon parameter of Adam optimizer')
+@register_param('adam_beta1', float, 0.9, 'Beta1 parameter of Adam optimizer')
+@register_param('adam_beta2', float, 0.98, 'Beta2 parameter of Adam optimizer')
+@register_param('adam_eps', float, 1e-9, 'Epsilon parameter of Adam optimizer')
 class AdamOptimizer(tf.keras.optimizers.Adam):
     """Wrapper for tf.keras.optimizers.Adam that registers config paramters"""
     def __init__(self, learning_rate: Union[int, Callable], **config):

@@ -5,7 +5,7 @@ This class is messy, and will likely break with different tensorflow versions (t
 from typing import Tuple, List, Iterable, Optional
 
 from midi_processor import MidiProcessor
-from registry import register_param, register_links
+from registry import register_param, register_links, PathLike
 
 import os
 import csv
@@ -77,23 +77,26 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
         i += random.randrange(min_stride, max_stride + 1)
 
 
-@register_param('sequence_length', 'int', 2048, '(Maximum) input sequence length')
-@register_param('augmentation', 'str', 'aug-',
+@register_param('dataset_dir', PathLike, 'Path to the dataset to train on')
+@register_param('dataset_csv', PathLike, 'Path to the dataset index file, relative to dataset_dir')
+@register_param('sequence_length', int, 2048, '(Maximum) input sequence length')
+@register_param('augmentation', str, 'aug-',
                 'Augmentation setting in [\'\', \'aug-\', \'aug+\']')
-@register_param('min_stride', 'int', 512,
+@register_param('min_stride', int, 512,
                 'Minimum amount of tokens in distance between the beginnings of sequence windows')
-@register_param('max_stride', 'int', 1024,
+@register_param('max_stride', int, 1024,
                 'Maximum amount of tokens in distance between the beginnings of sequence windows')
-@register_param('queue_size', 'int', 16, 'Size of the window generator buffer')
-@register_param('shuffle_buffer_size', 'int', 8096, 'Size of the window shuffle buffer')
-@register_param('batch_size', 'int', 2, 'Batch size to use during training')
-@register_param('num_threads', 'int', 16, 'Number of sequence generator processes to spawn')
+@register_param('queue_size', int, 16, 'Size of the window generator buffer')
+@register_param('shuffle_buffer_size', int, 8096, 'Size of the window shuffle buffer')
+@register_param('batch_size', int, 2, 'Batch size to use during training')
+@register_param('num_threads', int, 16, 'Number of sequence generator processes to spawn')
 @register_links({'MidiProcessor'})
 class PerformanceInputLoader:
 
-    def __init__(self, dataset_base_path, dataset_csv, **config):
-
-        check_dataset(dataset_base_path, dataset_csv)
+    def __init__(self, **config):
+        dataset_dir = config.get('dataset_dir')
+        dataset_csv = os.path.join(dataset_dir, config.get('dataset_csv'))
+        check_dataset(dataset_dir, dataset_csv)
 
         train, test, validation = get_midi_filenames(dataset_csv)
 
@@ -107,7 +110,7 @@ class PerformanceInputLoader:
                 PerformanceInputLoader.threaded_window_generator,
                 args=(
                     train,
-                    dataset_base_path,
+                    dataset_dir,
                     config['augmentation'],
                     window_size,
                     config['min_stride'],
@@ -132,7 +135,7 @@ class PerformanceInputLoader:
                     PerformanceInputLoader.threaded_window_generator,
                     args=(
                         test,
-                        dataset_base_path,
+                        dataset_dir,
                         '',
                         window_size,
                         config['min_stride'],

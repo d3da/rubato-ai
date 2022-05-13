@@ -5,23 +5,37 @@ Keep a global registry of hyperparameters used.
 Register a parameter directly accessed in a class by decorating the class with @register_param.
 If a class creates other classes (having their own parameters) in its __init__ method, decorate the class with @register_creates.
 """
-from typing import Dict, Set
+import os
+from typing import Dict, Set, Union, Type
+
+PathLike = Union[str, bytes, os.PathLike]
 
 """
-TODO register params in: optimizer.py, input_loader, midi_processor, performance_rnn.py
 TODO make the register a class
 
 TODO register class name, description, default of choice parameters
 
-TODO handle superclasses separately from creates classes
 TODD make start class that creates PerformanceRNNModel or TransformerModel
 """
+
+# All config parameters, accessed by parameter name
+CONFIG_REG_BY_NAME: Dict[str, Set['ConfParam']] = {}
+
+# All config parameters, accessed by class name
+CONFIG_REG_BY_CLASS_NAME: Dict[str, Set['ConfParam']] = {}
+
+# Set of classes created by key class during initialization, including possibly a superclass
+CONFIG_REG_CLASS_LINKS: Dict[str, Set[str]] = {}
+
+# Maps class_name -> { optional parameter name : { option value : linked classname }}
+CONFIG_REG_OPTIONAL_LINKS: Dict[str, Dict[str, Dict[str, str]]] = {}
+
 
 class ConfParam:
     def __init__(self,
                  class_name: str,
                  name: str,
-                 conf_type: str,
+                 conf_type: Type,
                  default: object,
                  description: str):
         self.class_name = class_name
@@ -31,21 +45,8 @@ class ConfParam:
         self.description = description
 
 
-# All config parameters, accessed by parameter name
-CONFIG_REG_BY_NAME: Dict[str, Set[ConfParam]] = {}
-
-# All config parameters, accessed by class name
-CONFIG_REG_BY_CLASS_NAME: Dict[str, Set[ConfParam]] = {}
-
-# Set of classes created by key class during initialization, including possibly a superclass
-CONFIG_REG_CLASS_LINKS: Dict[str, Set[str]] = {}
-
-# Maps class_name -> { optional parameter name : { option value : linked classname }}
-CONFIG_REG_OPTIONAL_LINKS: Dict[str, Dict[str, Dict[str, str]]] = {}
-
-
 def register_param(name: str,
-                   conf_type: str,
+                   conf_type: Type,
                    default: object = None,
                    description: str = 'No description provided'):
     """
