@@ -4,15 +4,30 @@ from typing import Dict, Optional, List
 from warnings import warn
 
 
+class ConfParamException(Exception):
+    def __init__(self, msg: str, param: registry.ConfParam):
+        super().__init__(f'{msg}\n{param_info(param)}')
+
+def param_info(param: registry.ConfParam) -> str:
+    used_by = ', '.join([x.class_name for x in registry.CONFIG_REG_BY_NAME[param.name]])
+    return (f'\tName:       \t{param.name}\n'
+            f'\tUsed by:    \t{used_by}\n'
+            f'\tType:       \t{param.conf_type}\n'
+            f'\tDefault:    \t{param.default}\n'
+            f'\tDescription:\t{param.description}\n')
+
+
+class ConfParamUnsetError(ConfParamException):
+    def __init__(self, param: registry.ConfParam):
+        super().__init__('Configuration parameter unset.', param)
+
+
 def _check_param(param: registry.ConfParam, **config):
     """
     TODO check type / value, possibly set default
     """
     if param.name not in config:
-        warn(f'Config parameter \'{param.name}\' used by {param.class_name} is unset.\n'
-             f'\tType: {param.conf_type}\n'
-             f'\tDefault value: {param.default}\n'
-             f'\tDescription: {param.description}')
+        raise ConfParamUnsetError(param)
 
 def _check_option_param(option_param: str,
                         option_choices: Dict[str, str],
