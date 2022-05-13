@@ -46,12 +46,12 @@ def check_config(check_class: str,
         for param in registry.CONFIG_REG_BY_CLASS_NAME[check_class]:
             _check_param(param, **config)
 
-    if check_class in registry.CONFIG_REG_OPTIONAL_CREATES:
-        for opt_param, opt_choices in registry.CONFIG_REG_OPTIONAL_CREATES[check_class].items():
+    if check_class in registry.CONFIG_REG_OPTIONAL_LINKS:
+        for opt_param, opt_choices in registry.CONFIG_REG_OPTIONAL_LINKS[check_class].items():
             _check_option_param(opt_param, opt_choices, visited_classes, **config)
 
-    if check_class in registry.CONFIG_REG_CLASS_CREATES:
-        for created_class in registry.CONFIG_REG_CLASS_CREATES[check_class]:
+    if check_class in registry.CONFIG_REG_CLASS_LINKS:
+        for created_class in registry.CONFIG_REG_CLASS_LINKS[check_class]:
             check_config(created_class, visited_classes, **config)
 
 

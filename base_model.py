@@ -12,7 +12,7 @@ import tensorflow as tf
 from midi_processor import MidiProcessor
 from optimizer import Optimizer
 
-from registry import register_param, register_creates
+from registry import register_param, register_links
 
 PROJECT_DIR = os.path.dirname(__file__)
 
@@ -23,7 +23,7 @@ PROJECT_DIR = os.path.dirname(__file__)
                 'Number of checkpoints to save in checkpoint directory')
 @register_param('label_smoothing', 'float', 0.1,
                 'Amount of label smoothing regularization to apply to training examples')
-@register_creates({'Optimizer', 'TrainCallback'})
+@register_links({'Optimizer', 'TrainCallback'})
 class PerformanceModel(tf.keras.Model):
     """
     Base class inherited by TransformerModel and PerformanceRNNModel.
@@ -115,12 +115,7 @@ class PerformanceModel(tf.keras.Model):
                 'Batches between saving checkpoint to disk')
 @register_param('kept_checkpoints', 'int', 50,
                 'Number of checkpoints to save in checkpoint directory')
-@register_param('time_granularity', 'int', 100,
-                'Number of midi processor <TIME_SHIFT> events per second')
-@register_param('piece_start', 'bool', True,
-                'Whether to prepend <START> events to sequences')
-@register_param('piece_end', 'bool', True,
-                'Whether to append <END> events to sequences')
+@register_links({'MidiProcessor'})
 class TrainCallback(tf.keras.callbacks.Callback):
     """
     Custom callback that provides "improvements" over the default
@@ -150,11 +145,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._writer = None  # Defer instantiating writer and sample subdirectories before training
         self._sample_subdir = None  # to avoid making empty subdirectories when not training
 
-        self._midi_processor = MidiProcessor(
-            config['time_granularity'],
-            config['piece_start'],
-            config['piece_end']
-        )
+        self._midi_processor = MidiProcessor(**config)
 
     def on_train_begin(self, logs=None):
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)

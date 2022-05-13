@@ -4,9 +4,17 @@ https://arxiv.org/abs/1808.03715v1
 """
 from typing import List, Iterable, Optional
 
+from registry import register_param
+
 import mido
 
 
+@register_param('time_granularity', 'int', 100,
+                'Number of midi processor <TIME_SHIFT> events per second')
+@register_param('piece_start', 'bool', True,
+                'Whether to prepend <START> events to sequences')
+@register_param('piece_end', 'bool', True,
+                'Whether to append <END> events to sequences')
 class MidiProcessor:
     """Class for generating tokens from a midi file and turning tokens back into a midi file.
 
@@ -38,11 +46,7 @@ class MidiProcessor:
     sustain_control_channel = 64
     sustain_threshold = 64
 
-    def __init__(self,
-                 time_granularity: int = 100,
-                 piece_start: bool = False,
-                 piece_end: bool = False,
-                 **kwargs):
+    def __init__(self, **config):
         """Create a MidiProcessor with specific settings.
 
         :param time_granularity: Size of smallest time unit, per second.
@@ -52,9 +56,9 @@ class MidiProcessor:
         :param piece_start: Whether to append a <START> event before the sequence
         :param piece_end: Whether to append an <END> event after the sequence
         """
-        self.time_granularity = time_granularity
-        self.piece_start = piece_start
-        self.piece_end = piece_end
+        self.time_granularity = config['time_granularity']
+        self.piece_start = config['piece_start']
+        self.piece_end = config['piece_end']
         self._pitch_augmentation = None
         self._time_augmentation = None
 

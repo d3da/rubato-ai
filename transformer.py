@@ -9,7 +9,7 @@ import tensorflow as tf
 
 from base_model import PerformanceModel
 
-from registry import register_param, register_creates, register_optional_creates
+from registry import register_param, register_links, register_optional_links
 
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
@@ -105,7 +105,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 @register_param('max_relative_pos', 'int', 1024,
                 'Clipping distance of relative positional encodings')
-@register_creates({'MultiHeadAttention'})
+@register_links({'MultiHeadAttention'})
 class RelativeGlobalAttention(MultiHeadAttention):
     """
     Huang et al. (2018)
@@ -167,7 +167,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
         return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
 
 
-@register_optional_creates('attn_type', {
+@register_optional_links('attn_type', {
     'absolute': 'MultiHeadAttention',
     'relative': 'RelativeGlobalAttention'
 })
@@ -285,7 +285,7 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
                 'Dropout rate to use after input layer and in TransformerBlock')
 @register_param('num_layers', 'int', 8,
                 'Number of stacked TransformerBlock layers to use')
-@register_creates({'PerformanceModel', 'TransformerBlock'})
+@register_links({'PerformanceModel', 'TransformerBlock'})
 class TransformerModel(PerformanceModel):
     """
     Transformer decoder model based on Vaswani et al. 2017.

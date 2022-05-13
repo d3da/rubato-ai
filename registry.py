@@ -38,10 +38,10 @@ CONFIG_REG_BY_NAME: Dict[str, Set[ConfParam]] = {}
 CONFIG_REG_BY_CLASS_NAME: Dict[str, Set[ConfParam]] = {}
 
 # Set of classes created by key class during initialization, including possibly a superclass
-CONFIG_REG_CLASS_CREATES: Dict[str, Set[str]] = {}
+CONFIG_REG_CLASS_LINKS: Dict[str, Set[str]] = {}
 
 # Maps class_name -> { optional parameter name : { option value : linked classname }}
-CONFIG_REG_OPTIONAL_CREATES: Dict[str, Dict[str, Dict[str, str]]] = {}
+CONFIG_REG_OPTIONAL_LINKS: Dict[str, Dict[str, Dict[str, str]]] = {}
 
 
 def register_param(name: str,
@@ -52,7 +52,6 @@ def register_param(name: str,
     Register a hyperparameter to the parameter registry.
     Use as class decorator to define the config parameters used by that class.
 
-    TODO register (optional) links between class parameters
     TODO handle two classes using same parameter
     TODO change config value to default if not present (warn the user)
     """
@@ -77,19 +76,19 @@ def register_param(name: str,
     return _wrap_class
 
 
-def register_creates(created_classes: Set[str]):
+def register_links(created_classes: Set[str]):
     """"""
     def _wrap_class(cls):
         class_name = cls.__name__
         print(f'{class_name}: Registering link to {created_classes}\n')
 
-        CONFIG_REG_CLASS_CREATES[class_name] = created_classes
+        CONFIG_REG_CLASS_LINKS[class_name] = created_classes
         return cls
 
     return _wrap_class
 
-def register_optional_creates(choice_param: str,
-                              choice_options: Dict[str, str]):
+def register_optional_links(choice_param: str,
+                            choice_options: Dict[str, str]):
     """"""
     def _wrap_class(cls):
         class_name = cls.__name__
@@ -98,9 +97,9 @@ def register_optional_creates(choice_param: str,
             print(f'\t\'{name}\' -> {class_link}')
         print()
 
-        if class_name not in CONFIG_REG_OPTIONAL_CREATES:
-            CONFIG_REG_OPTIONAL_CREATES[class_name] = {}
-        CONFIG_REG_OPTIONAL_CREATES[class_name][choice_param] = choice_options
+        if class_name not in CONFIG_REG_OPTIONAL_LINKS:
+            CONFIG_REG_OPTIONAL_LINKS[class_name] = {}
+        CONFIG_REG_OPTIONAL_LINKS[class_name][choice_param] = choice_options
         return cls
 
     return _wrap_class
