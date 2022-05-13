@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
 import os
-from typing import Dict, Any
-
-import tensorflow as tf
-
-from base_model import PerformanceModel
-from input_loader import PerformanceInputLoader
-from performance_rnn import PerformanceRNNModel
-from transformer import TransformerModel
-from config_check import check_config
 
 PROJECT_DIR = os.path.dirname(__file__)
 
@@ -34,6 +25,7 @@ default_conf = {
     # TODO Performance RNN / Vaswani hparams
 
     # Model settings: (Transformer)
+    'model_type': 'transformer',
     'num_layers': 8,
     'drop_rate': 0.2,
     'layernorm_eps': 1e-6,
@@ -66,45 +58,8 @@ default_conf = {
     'kept_checkpoints': 50,
 
     'train_dir': PROJECT_DIR,
-    # 'dataset_dir': 'data/maestro-v3.0.0',
-    # 'dataset_csv': 'maestro-v3.0.0.csv',
+    'dataset_dir': os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0'),
+    'dataset_csv': 'maestro-v3.0.0.csv',  # relative to dataset_dir
 }
 
 
-def load_model_from_config(config: Dict[str, Any]) -> PerformanceModel:
-    dataset_base = os.path.join(config['train_dir'], 'data/maestro-v3.0.0')
-    dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
-
-    input_loader = PerformanceInputLoader(
-        dataset_base,
-        dataset_csv,
-        **config
-    )
-
-    model = TransformerModel(
-        'MyModel',
-        input_loader,
-        restore_checkpoint=False,
-        **config
-    )
-
-    # model = PerformanceRNNModel(  # TODO switch between transformer/rnn
-    #     'PerfRNN',
-    #     input_loader,
-    #     False,
-    #     vocab_size=input_loader.vocab_size,
-    #     rnn_units=512,
-    #     dropout=0.0,
-    #     **config
-    # )
-
-    model.__call__(tf.zeros((config['batch_size'],
-                             config['sequence_length']), dtype=tf.int32))
-    model.summary()
-    return model
-
-
-if __name__ == '__main__':
-    check_config('TransformerModel', None, **default_conf)
-    model = load_model_from_config(default_conf)
-    model.train(10)

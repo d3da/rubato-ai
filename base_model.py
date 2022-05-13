@@ -239,9 +239,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
 
 
 if __name__ == '__main__':
-    exit(print('Run config.py instead'))
-    # dataset_base = os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0')
-    # dataset_csv = os.path.join(dataset_base, 'maestro-v3.0.0.csv')
+    exit()
 
     # # Simon & Oore (2018)
     # inner_model = PerformanceRNNModel(
