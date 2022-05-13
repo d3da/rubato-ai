@@ -160,6 +160,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             os.mkdir(self._sample_subdir)
 
     def on_train_end(self, logs=None):
+        assert self._writer is not None
         self._writer.close()
 
     def on_batch_begin(self, batch, logs=None):
@@ -180,6 +181,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             logs = self._run_validation(self._validation_batches, logs)
 
         if step % self._tensorboard_update_freq == 0:
+            assert self._writer is not None
             with self._writer.as_default():
                 tf.summary.scalar('batch_time', _batch_time, step=step)
                 for key, value in logs.items():
@@ -192,6 +194,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
             for i, seq in enumerate(music):
                 events = self._midi_processor.indices_to_events(seq)
                 midi = self._midi_processor.events_to_midi(events)
+                assert self._sample_subdir is not None
                 midi_path = os.path.join(os.path.join(self._sample_subdir, f'{self.model.name}_{step}_{i}.midi'))
                 midi.save(midi_path)
 

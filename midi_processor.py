@@ -161,12 +161,12 @@ class MidiProcessor:
             self._add_event('TIME_SHIFT', shift)
             steps -= shift
 
-    def _add_event(self, event_type: str, event_value: Optional[int] = None):
+    def _add_event(self, event_type: str, event_value: int = -1):
         index = self._event_index(event_type, event_value)
         event = Event(index, event_type, event_value)
         self._events.append(event)
 
-    def _event_index(self, event_type: str, event_value: Optional[int] = None) -> int:
+    def _event_index(self, event_type: str, event_value: int) -> int:
         idx = 0
         if event_type == 'NOTE_ON':
             return event_value
@@ -191,11 +191,13 @@ class MidiProcessor:
         raise ValueError(f'Could not determine index for event <{event_type}: {event_value}>')
 
     def _augment_pitch(self, pitch: int):
+        assert self._pitch_augmentation is not None
         pitch += self._pitch_augmentation
         pitch = min(self.num_notes - 1, max(0, pitch))
         return pitch
 
     def _augment_time(self, time: float):
+        assert self._time_augmentation is not None
         time *= self._time_augmentation
         return time
 
@@ -278,12 +280,14 @@ class Event:
     An event has a type in {'NOTE_ON', 'NOTE_OFF', 'TIME_SHIFT', 'VELOCITY', 'START', 'END'}
     and a value corresponding to a pitch, time step or velocity.
 
+    A value of -1 is used for <START> or <END> tokens.
+
     This event representation was proposed by Oore et al. (2018)
     and extended to allow for different time granularity as well as optional START and END tokens
     before and after a musical piece. (See :class:`MidiProcessor`)
     """
 
-    def __init__(self, index: int, event_type: str, event_value: Optional[int] = None):
+    def __init__(self, index: int, event_type: str, event_value: int = -1):
         self.index = index
         self.type = event_type
         self.value = event_value
