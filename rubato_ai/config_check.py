@@ -94,10 +94,22 @@ def check_config(check_class: str,
 
     Returns the number of errors found in configuration
     """
-    if _visited_classes is None:
-        _visited_classes = []
+    _visited_classes = [] if _visited_classes is None else _visited_classes[:]
+
+    # Avoid getting stuck in a loop
     if check_class in _visited_classes:
-        raise RuntimeError(f'Error: Class {check_class} already visited.')
+        raise RuntimeError(f'Class {check_class} already visited. Is there a circular link?')
+    _visited_classes.append(check_class)
+
+    # Check if the class has anything registered
+    if check_class not in registry.REG_CONF_PARAMS_BY_CLASS_NAME and \
+            check_class not in registry.REG_LINK_PARAMS and \
+            check_class not in registry.REG_CLASS_LINKS:
+        linked_from = ''
+        if _visited_classes is not None and len(_visited_classes) > 2:
+            linked_from = f'linked from {_visited_classes[-2]} '
+        raise RuntimeError(f'Class {check_class} {linked_from}'
+                            'was not registered.')
 
     num_errors = 0
 
@@ -134,8 +146,8 @@ def validate_config(check_class: str, **conf):
 
 
 if __name__ == '__main__':
-    from config import default_conf
-    from train import ModelTrainer
+    from .config import default_conf
+    from .train import ModelTrainer
     validate_config('ModelTrainer', **default_conf)
     # validate_config('ModelTrainer')
 
