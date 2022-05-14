@@ -1,10 +1,12 @@
+"""TODO this needs testing and improvement. I'm not sure it works at all"""
 import os
 
 import tensorflow as tf
 
 from .base_model import PerformanceModel
-from .config import load_model_from_config, default_conf, PROJECT_DIR
+from .config import default_conf, PROJECT_DIR
 from .midi_processor import MidiProcessor
+from .train import ModelTrainer
 
 
 def load_averaged_weights(model: PerformanceModel, last_n=20) -> None:
@@ -43,11 +45,10 @@ def load_averaged_weights(model: PerformanceModel, last_n=20) -> None:
     # model.checkpoint_mgr = None
 
 
-if __name__ == '__main__':
-    model = load_model_from_config(default_conf)
-    load_averaged_weights(model)
+def average_checkpoints(trainer: ModelTrainer):
+    load_averaged_weights(trainer.model)
     midi_processor = MidiProcessor(**default_conf)
-    music = model.sample_music(sample_length=1024, temperature=0.8, verbose=True)
+    music = trainer.model.sample_music(sample_length=1024, temperature=0.8, verbose=True)
 
     midi_dir = os.path.join(PROJECT_DIR, 'samples')
     if not os.path.exists(midi_dir):
@@ -56,10 +57,11 @@ if __name__ == '__main__':
     for i, seq in enumerate(music):
         events = midi_processor.indices_to_events(seq)
         midi = midi_processor.events_to_midi(events)
-        midi_path = os.path.join(midi_dir, f'{model.name}_avg_{i}.midi')
+        midi_path = os.path.join(midi_dir, f'{trainer.model.name}_avg_{i}.midi')
         midi.save(midi_path)
-    exit()
 
-else:
-    raise ImportError('Importing avg_checkpoints.py not yet supported... '
-                      '(for fear of overwriting checkpoints)')
+    exit()  # Exit so we don't accidently continue training and overwrite a checkpoint
+
+if __name__ == '__main__':
+    p = ModelTrainer('foobar', False, **default_conf)
+    average_checkpoints(p)
