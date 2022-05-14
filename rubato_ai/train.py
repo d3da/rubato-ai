@@ -1,14 +1,14 @@
 from .base_model import PerformanceModel
 from .transformer import TransformerModel
 from .input_loader import PerformanceInputLoader
-from .registry import register_param, register_link_parameter, register_links
+from .registry import register_param, register_link_param, register_links
 from .config_check import check_config
 
 from .config import default_conf
 
 import tensorflow as tf
 
-@register_link_parameter('model_type', {
+@register_link_param('model_type', {
     'transformer': 'TransformerModel',
 })
 @register_param('batch_size', int, 'Batch size to use during training')

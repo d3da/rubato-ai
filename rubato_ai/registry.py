@@ -95,9 +95,9 @@ def register_param(name: str,
     return _wrap_class
 
 
-def register_link_parameter(choice_param: str,
-                            choice_options: Dict[str, str],
-                            description: str = 'No description provided'):
+def register_link_param(choice_param: str,
+                        choice_options: Dict[str, str],
+                        description: str = 'No description provided'):
     """
     A link parameter links from a source class to a target class in which
     the target class depends on the value of a config parameter.

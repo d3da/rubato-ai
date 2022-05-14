@@ -10,7 +10,7 @@ from typing import Optional
 
 from .base_model import PerformanceModel
 
-from .registry import register_param, register_links, register_link_parameter
+from .registry import register_param, register_links, register_link_param
 
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
@@ -168,7 +168,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
         return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
 
 
-@register_link_parameter('attn_type', {
+@register_link_param('attn_type', {
     'absolute': 'MultiHeadAttention',
     'relative': 'RelativeGlobalAttention'
 })
