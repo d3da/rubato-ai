@@ -79,17 +79,17 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
 
 @register_param('dataset_dir', PathLike, 'Path to the dataset to train on')
 @register_param('dataset_csv', PathLike, 'Path to the dataset index file, relative to dataset_dir')
-@register_param('sequence_length', int, 2048, '(Maximum) input sequence length')
-@register_param('augmentation', str, 'aug-',
+@register_param('sequence_length', int, '(Maximum) input sequence length')
+@register_param('augmentation', str,
                 'Augmentation setting in [\'\', \'aug-\', \'aug+\']')
-@register_param('min_stride', int, 512,
+@register_param('min_stride', int,
                 'Minimum amount of tokens in distance between the beginnings of sequence windows')
-@register_param('max_stride', int, 1024,
+@register_param('max_stride', int,
                 'Maximum amount of tokens in distance between the beginnings of sequence windows')
-@register_param('queue_size', int, 16, 'Size of the window generator buffer')
-@register_param('shuffle_buffer_size', int, 8096, 'Size of the window shuffle buffer')
-@register_param('batch_size', int, 2, 'Batch size to use during training')
-@register_param('num_threads', int, 16, 'Number of sequence generator processes to spawn')
+@register_param('queue_size', int, 'Size of the window generator buffer')
+@register_param('shuffle_buffer_size', int, 'Size of the window shuffle buffer')
+@register_param('batch_size', int, 'Batch size to use during training')
+@register_param('num_threads', int, 'Number of sequence generator processes to spawn')
 @register_links({'MidiProcessor'})
 class PerformanceInputLoader:
 

@@ -130,12 +130,12 @@ def validate_config(check_class: str, **conf):
     """Run check_config but raise an exception at the end if errors were encountered"""
     num_errors = check_config(check_class, **conf)
     if num_errors > 0:
-        raise Exception(f'Found {num_errors} errors in configuration')
+        raise ConfigException(f'Found {num_errors} errors in configuration')
 
 
 if __name__ == '__main__':
     from config import default_conf
     from train import ModelTrainer
-    # validate_config('ModelTrainer', **default_conf)
-    validate_config('ModelTrainer')
+    validate_config('ModelTrainer', **default_conf)
+    # validate_config('ModelTrainer')
 

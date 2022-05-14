@@ -31,13 +31,13 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     return tf.tile(mask, mult)
 
 
-@register_param('attn_heads', int, 8,
+@register_param('attn_heads', int,
                 'Number of attention heads')
-@register_param('embed_dim', int, 512,
+@register_param('embed_dim', int,
                 'Dimension of output and \'value\' projection')
-@register_param('attn_dim', Optional[int], 384,
+@register_param('attn_dim', Optional[int],
                 'Dimension of \'key\' projection. Set to None to use embed_dim')
-@register_param('sequence_length', int, 2048,
+@register_param('sequence_length', int,
                 'Maximum input sequence length')
 class MultiHeadAttention(tf.keras.layers.Layer):
     """
@@ -105,7 +105,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return attn_score
 
 
-@register_param('max_relative_pos', int, 1024,
+@register_param('max_relative_pos', int,
                 'Clipping distance of relative positional encodings')
 @register_links({'MultiHeadAttention'})
 class RelativeGlobalAttention(MultiHeadAttention):
@@ -173,13 +173,13 @@ class RelativeGlobalAttention(MultiHeadAttention):
     'absolute': 'MultiHeadAttention',
     'relative': 'RelativeGlobalAttention'
 })
-@register_param('ff_dim', int, 1024,
+@register_param('ff_dim', int,
                 'Output dimension of the first dense sublayer')
-@register_param('embed_dim', int, 512,
+@register_param('embed_dim', int,
                 'Dimension of output and \'value\' projection')
-@register_param('layernorm_eps', float, 1e-6,
+@register_param('layernorm_eps', float,
                 'Epsilon value used in LayerNorm sublayer')
-@register_param('drop_rate', float, 0.2,
+@register_param('drop_rate', float,
                 'Dropout rate to apply after attention and last dense sublayer')
 class TransformerBlock(tf.keras.layers.Layer):
     """
@@ -279,13 +279,13 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
         return tf.einsum('bsm,tm->bst', inputs, self.emb_matrix)
 
 
-@register_param('sequence_length', int, 2048,
+@register_param('sequence_length', int,
                 'Maximum input sequence length')
-@register_param('embed_dim', int, 512,
+@register_param('embed_dim', int,
                 'Hidden dimension size')
-@register_param('drop_rate', float, 0.2,
+@register_param('drop_rate', float,
                 'Dropout rate to use after input layer and in TransformerBlock')
-@register_param('num_layers', int, 8,
+@register_param('num_layers', int,
                 'Number of stacked TransformerBlock layers to use')
 @register_links({'PerformanceModel', 'TransformerBlock'})
 class TransformerModel(PerformanceModel):

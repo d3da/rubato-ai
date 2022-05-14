@@ -12,8 +12,8 @@ import tensorflow as tf
 @register_link_parameter('model_type', {
     'transformer': 'TransformerModel',
 })
-@register_param('batch_size', int, 2, 'Batch size to use during training')
-@register_param('sequence_length', int, 2048, '(Maximum) input sequence length')
+@register_param('batch_size', int, 'Batch size to use during training')
+@register_param('sequence_length', int, '(Maximum) input sequence length')
 @register_links({'PerformanceInputLoader'})
 class ModelTrainer:
     """

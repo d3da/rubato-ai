@@ -29,12 +29,10 @@ class ConfParam:
                  class_name: str,
                  name: str,
                  conf_type: Type,
-                 default: object,
                  description: str):
         self.class_name = class_name
         self.name = name
         self.conf_type = conf_type
-        self.default = default
         self.description = description
 
     def __str__(self):
@@ -42,13 +40,11 @@ class ConfParam:
         return (f'\tName:       \t{self.name}\n'
                 f'\tUsed by:    \t{used_by}\n'
                 f'\tType:       \t{self.conf_type}\n'
-                f'\tDefault:    \t{self.default}\n'
                 f'\tDescription:\t{self.description}\n')
 
 
 def register_param(name: str,
                    conf_type: Type,
-                   default: object = None,
                    description: str = 'No description provided'):
     """
     Register a hyperparameter to the parameter registry.
@@ -63,7 +59,7 @@ def register_param(name: str,
         # print(f'{class_name}: Registering config parameter \'{name}\'')
         # print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
 
-        param = ConfParam(class_name, name, conf_type, default, description)
+        param = ConfParam(class_name, name, conf_type, description)
         # TODO check if param already exists
         if name not in REG_CONF_PARAMS_BY_NAME:
             REG_CONF_PARAMS_BY_NAME[name] = set()

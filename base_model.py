@@ -17,11 +17,11 @@ from registry import register_param, register_links, PathLike
 PROJECT_DIR = os.path.dirname(__file__)
 
 
-@register_param('train_dir', PathLike, PROJECT_DIR,
+@register_param('train_dir', PathLike,
                 'Path for saving checkpoints, tensorboard logs and samples')
-@register_param('kept_checkpoints', int, 50,
+@register_param('kept_checkpoints', int,
                 'Number of checkpoints to save in checkpoint directory')
-@register_param('label_smoothing', float, 0.1,
+@register_param('label_smoothing', float,
                 'Amount of label smoothing regularization to apply to training examples')
 @register_links({'Optimizer', 'TrainCallback'})
 class PerformanceModel(tf.keras.Model):
@@ -100,21 +100,21 @@ class PerformanceModel(tf.keras.Model):
             print(f'Finished training epoch {e+1}/{epochs}.')
 
 
-@register_param('train_dir', PathLike, PROJECT_DIR,
+@register_param('train_dir', PathLike,
                 'Path for saving checkpoints, tensorboard logs and samples')
-@register_param('tensorboard_update_freq', int, 50,
+@register_param('tensorboard_update_freq', int,
                 'Number of batches between tensorboard updates')
-@register_param('sample_midi_freq', int, 250,
+@register_param('sample_midi_freq', int,
                 'Batches between saving midi sample to disk')
-@register_param('sample_midi_length', int, 512,
+@register_param('sample_midi_length', int,
                 'Number of tokens to sample')
-@register_param('validation_freq', int, 1000,
+@register_param('validation_freq', int,
                 'Batches between evaluating validation data')
-@register_param('validation_batches', int, 25,
+@register_param('validation_batches', int,
                 'Batches to evaluate validation data for')
-@register_param('save_checkpoint_freq', int, 500,
+@register_param('save_checkpoint_freq', int,
                 'Batches between saving checkpoint to disk')
-@register_param('kept_checkpoints', int, 50,
+@register_param('kept_checkpoints', int,
                 'Number of checkpoints to save in checkpoint directory')
 @register_links({'MidiProcessor'})
 class TrainCallback(tf.keras.callbacks.Callback):
