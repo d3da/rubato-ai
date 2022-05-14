@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 https://keras.io/examples/generative/text_generation_with_miniature_gpt/
 """
@@ -9,9 +8,9 @@ import tensorflow as tf
 
 from typing import Optional
 
-from base_model import PerformanceModel
+from .base_model import PerformanceModel
 
-from registry import register_param, register_links, register_link_parameter
+from .registry import register_param, register_links, register_link_parameter
 
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):

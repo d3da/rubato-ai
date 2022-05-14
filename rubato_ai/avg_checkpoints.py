@@ -2,9 +2,9 @@ import os
 
 import tensorflow as tf
 
-from base_model import PerformanceModel
-from config import load_model_from_config, default_conf, PROJECT_DIR
-from midi_processor import MidiProcessor
+from .base_model import PerformanceModel
+from .config import load_model_from_config, default_conf, PROJECT_DIR
+from .midi_processor import MidiProcessor
 
 
 def load_averaged_weights(model: PerformanceModel, last_n=20) -> None:

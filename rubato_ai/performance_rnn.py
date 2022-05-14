@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 This Time with Feeling: Learning Expressive Musical Performance
 by Sageev Oore, Ian Simon, Sander Dieleman, Douglas Eck, Karen Simonyan
@@ -8,7 +7,7 @@ import time
 
 import tensorflow as tf
 
-from base_model import PerformanceModel
+from .base_model import PerformanceModel
 
 
 class PerformanceRNNModel(PerformanceModel):

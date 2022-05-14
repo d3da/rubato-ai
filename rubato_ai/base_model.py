@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 
 """
@@ -9,12 +8,10 @@ from typing import Generator
 import numpy as np
 import tensorflow as tf
 
-from midi_processor import MidiProcessor
-from optimizer import Optimizer
+from .midi_processor import MidiProcessor
+from .optimizer import Optimizer
 
-from registry import register_param, register_links, PathLike
-
-PROJECT_DIR = os.path.dirname(__file__)
+from .registry import register_param, register_links, PathLike
 
 
 @register_param('train_dir', PathLike,

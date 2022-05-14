@@ -1,17 +1,16 @@
-#!/usr/bin/env python3
 import os
 
-PROJECT_DIR = os.path.dirname(__file__)
+PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 default_conf = {
-    'mixed_precision': False,
+    'mixed_precision': True,
 
     # Input loader settings
     'sequence_length': 2048,
     'batch_size': 2,
     'augmentation': 'aug-',
-    'min_stride': 512,
-    'max_stride': 1024,
+    'min_stride': 1024,
+    'max_stride': 2048,
 
     # Midi processor settings
     'time_granularity': 100,
@@ -20,8 +19,8 @@ default_conf = {
 
     # dataset generator settings
     'shuffle_buffer_size': 8096,
-    'queue_size': 32,  # No impact on model performance
-    'num_threads': 4,  # No impact on model performance (may impact throughput)
+    'queue_size': 16,  # No impact on model performance
+    'num_threads': 14,  # TODO 'automatic' setting
 
     # TODO Performance RNN / Vaswani hparams
 
@@ -50,13 +49,13 @@ default_conf = {
 
 
     # Train loop settings
-    'tensorboard_update_freq': 50,
-    'sample_midi_freq': 250,
+    'tensorboard_update_freq': 25,
+    'sample_midi_freq': 500,
     'sample_midi_length': 512,
-    'validation_freq': 1000,
-    'validation_batches': 25,
+    'validation_freq': 2500,
+    'validation_batches': 250,
     'save_checkpoint_freq': 500,
-    'kept_checkpoints': 50,
+    'kept_checkpoints': 25,
 
     'train_dir': PROJECT_DIR,
     'dataset_dir': os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0'),

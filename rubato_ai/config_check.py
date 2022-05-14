@@ -1,4 +1,4 @@
-import registry
+from . import registry
 
 from typing import Dict, Optional, List, Any
 from typing_inspect import is_union_type

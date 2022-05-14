@@ -1,11 +1,10 @@
-#!/usr/bin/env python3
 """
 This class is messy, and will likely break with different tensorflow versions (tested on 2.7.0)
 """
 from typing import Tuple, List, Iterable, Optional
 
-from midi_processor import MidiProcessor
-from registry import register_param, register_links, PathLike
+from .midi_processor import MidiProcessor
+from .registry import register_param, register_links, PathLike
 
 import os
 import csv

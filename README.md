@@ -1,4 +1,4 @@
-# Performance RNN
+# rubato_ai
 
 
 Implementation of _Performance RNN_,

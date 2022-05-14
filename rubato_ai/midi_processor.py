@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
 """
 https://arxiv.org/abs/1808.03715v1
 """
 from typing import List, Iterable, Optional
 
-from registry import register_param
+from .registry import register_param
 
 import mido
 

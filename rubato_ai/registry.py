@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Keep a global registry of hyperparameters used.
 
@@ -78,6 +77,9 @@ def register_param(name: str,
 
 
 def update_docstring(cls, param):
+    if cls.__doc__ is None:
+        print(f'Warning: {cls.__name__} has no docstring')
+        return
     cls.__doc__ += f'\n\nConfiguration parameter used:\n{param}'
 
 
