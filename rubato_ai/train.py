@@ -2,7 +2,7 @@ from .base_model import PerformanceModel
 from .transformer import TransformerModel
 from .input_loader import PerformanceInputLoader
 from .registry import register_param, register_link_param, register_links
-from .config_check import check_config
+from .config_check import validate_config
 
 from .config import default_conf
 
@@ -25,7 +25,7 @@ class ModelTrainer:
     """
 
     def __init__(self, model_name: str, restore_checkpoint: bool, **config):
-        check_config(type(self).__name__, **config)
+        validate_config(type(self).__name__, **config)
 
         self.mixed_precision = config['mixed_precision']
         if self.mixed_precision:
