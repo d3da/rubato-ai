@@ -5,6 +5,8 @@ Register a parameter directly accessed in a class by decorating the class with @
 If a class creates other classes (having their own parameters) in its __init__ method, decorate the class with @register_creates.
 """
 import os
+import sys
+
 from typing import Dict, Set, Union, Type
 
 PathLike = Union[str, bytes, os.PathLike]
@@ -50,7 +52,6 @@ def register_param(name: str,
     Use as class decorator to define the config parameters used by that class.
 
     TODO handle two classes using same parameter
-    TODO change config value to default if not present (warn the user)
     """
 
     def _wrap_class(cls):
@@ -68,7 +69,6 @@ def register_param(name: str,
             REG_CONF_PARAMS_BY_CLASS_NAME[class_name] = set()
         REG_CONF_PARAMS_BY_CLASS_NAME[class_name].add(param)
 
-        print(class_name, param.name)
         update_docstring(cls, param)
 
         return cls
@@ -77,14 +77,30 @@ def register_param(name: str,
 
 
 def update_docstring(cls, param):
+    """
+    Add registered parameter information to the class docstring
+
+    Since the registry is populated at import time, this can be used
+    to change auto-generated documentation like sphinx
+    """
     if cls.__doc__ is None:
-        print(f'Warning: {cls.__name__} has no docstring')
+        print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
         return
     cls.__doc__ += f'\n\nConfiguration parameter used:\n{param}'
 
 
 def register_links(created_classes: Set[str]):
-    """"""
+    """
+    When a link is registered to another class name, this indicates that all
+    parameters of the target class should be checked whenever the parameters
+    of the source class are checked.
+
+    For example, because RelativeGlobalAttention inherits from MultiHeadAttention,
+    a link is registered from 'RelativeGlobalAttention' to 'MultiHeadAttention',
+    because configuration parameters of MHA are always used whenever RGA is used.
+
+    For optional links, see register_link_parameter.
+    """
     def _wrap_class(cls):
         class_name = cls.__name__
         # print(f'{class_name}: Registering link to {created_classes}\n')
@@ -117,7 +133,25 @@ class LinkParam():
 def register_link_parameter(choice_param: str,
                             choice_options: Dict[str, str],
                             description: str = 'No description provided'):
-    """"""
+    """
+    A link parameter links from a source class to a target class in which
+    the target class depends on the value of a config parameter.
+
+    Example:
+    The class TransformerBlock defines a link parameter with the name 'attn_type',
+    allowing the type of attention layer to be selected. When config['attn_type']
+    is set to 'relative', the TransformerBlock creates a RelativeGlobalAttention
+    layer. When set to 'absolute', a MultiHeadAttention layer is created.
+    This relation is defined using this function as decorator:
+
+        @register_link_parameter('attn_type', {
+            'absolute':'MultiHeadAttention',
+            'relative':'RelativeGlobalAttention'
+            }
+        )
+        class TransformerBlock:
+            ...
+    """
     def _wrap_class(cls):
         class_name = cls.__name__
 
@@ -126,6 +160,9 @@ def register_link_parameter(choice_param: str,
         if class_name not in REG_LINK_PARAMS:
             REG_LINK_PARAMS[class_name] = set()
         REG_LINK_PARAMS[class_name].add(link_param)
+
+        update_docstring(cls, link_param)
+
         return cls
 
     return _wrap_class
