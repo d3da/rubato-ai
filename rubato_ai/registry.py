@@ -149,6 +149,8 @@ def register_links(created_classes: Set[str]):
         # print(f'{class_name}: Registering link to {created_classes}\n')
 
         REG_CLASS_LINKS[class_name] = created_classes
+
+        add_link_docstring(cls, created_classes)
         return cls
 
     return _wrap_class
@@ -165,3 +167,13 @@ def add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
         print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
         return
     cls.__doc__ += f'\n\nConfiguration parameter used:\n{param}'
+
+def add_link_docstring(cls, targets: Set[str]):
+    """
+    Add linked classses to docstring. Links are formatted for sphinx
+    """
+    if cls.__doc__ is None:
+        print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
+        return
+    link_fmt = ', '.join([f':class:`{link}`' for link in targets])
+    cls.__doc__ += f'\n\nClass links to:\n{link_fmt}'
