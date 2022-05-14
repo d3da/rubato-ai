@@ -73,7 +73,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self.V = tf.keras.layers.experimental.EinsumDense(
             'bsd,dhv->bshv', output_shape=[self._max_seq_len, self._num_heads, self._d_v])
 
-        self.scale = 1.0 / tf.math.sqrt(float(self._d_k))
+        self.scale = tf.cast(1.0 / tf.math.sqrt(float(self._d_k)), self.compute_dtype)
 
         self.softmax = tf.keras.layers.Softmax(axis=3)
 
@@ -245,8 +245,7 @@ class PositionalEncoding(tf.keras.layers.Layer):
         angle_rates = 1 / np.power(10000, (2 * (i // 2)) / np.float32(d_model))
         return pos * angle_rates
 
-    @staticmethod
-    def positional_encoding(position, d_model):
+    def positional_encoding(self, position, d_model):
         angle_rads = PositionalEncoding.get_angles(
             np.arange(position)[:, np.newaxis],
             np.arange(d_model)[np.newaxis, :],
@@ -256,7 +255,7 @@ class PositionalEncoding(tf.keras.layers.Layer):
         angle_rads[:, 1::2] = np.cos(angle_rads[:, 1::2])
         pos_encoding = angle_rads[np.newaxis, ...]
 
-        return tf.cast(pos_encoding, dtype=tf.float32)
+        return tf.cast(pos_encoding, dtype=self.compute_dtype)
 
 
 class SharedTokenEmbedding(tf.keras.layers.Layer):
@@ -329,7 +328,7 @@ class TransformerModel(PerformanceModel):
         # x: (batch, seq_len, vocab_size)
         x = self.inp_emb(x, encode=True, training=training)
         # x: (batch, seq_len, embed_dim)
-        x *= tf.math.sqrt(tf.cast(self._embed_dim, tf.float32))
+        x *= tf.math.sqrt(tf.cast(self._embed_dim, self.compute_dtype))
         x += self.pos_enc(x, training=training)
         x = self.inp_dropout(x, training=training)
 

@@ -4,6 +4,7 @@ import os
 PROJECT_DIR = os.path.dirname(__file__)
 
 default_conf = {
+    'mixed_precision': False,
 
     # Input loader settings
     'sequence_length': 2048,

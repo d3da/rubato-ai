@@ -14,6 +14,7 @@ import tensorflow as tf
 })
 @register_param('batch_size', int, 'Batch size to use during training')
 @register_param('sequence_length', int, '(Maximum) input sequence length')
+@register_param('mixed_precision', bool, 'Enable mixed_float16 precision in session')
 @register_links({'PerformanceInputLoader'})
 class ModelTrainer:
     """
@@ -25,6 +26,11 @@ class ModelTrainer:
 
     def __init__(self, model_name: str, restore_checkpoint: bool, **config):
         check_config(type(self).__name__, **config)
+
+        self.mixed_precision = config['mixed_precision']
+        if self.mixed_precision:
+            print('>>>>> Enabling mixed precision floats')
+            tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
         self.input_loader = PerformanceInputLoader(**config)
         self.model = self._model_from_config(model_name,
