@@ -1,11 +1,11 @@
 from typing import Optional, Union, Callable
 
-from registry import register_param, register_optional_links, register_links
+from registry import register_param, register_link_parameter, register_links
 
 import tensorflow as tf
 
 
-@register_optional_links('learning_rate_schedule', {
+@register_link_parameter('learning_rate_schedule', {
     'standard' : 'StandardLearningRateSchedule',
     'noam' : 'NoamLearningRateSchedule',
 })

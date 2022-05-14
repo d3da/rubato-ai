@@ -7,7 +7,11 @@ from warnings import warn
 import sys
 
 
-class ConfParamException(Exception):
+class ConfigException(Exception):
+    pass
+
+
+class ConfParamException(ConfigException):
     def __init__(self, msg: str, param: registry.ConfParam):
         super().__init__(f'{msg}\n{param}')
 
@@ -18,6 +22,20 @@ class ConfParamUnsetError(ConfParamException):
 class ConfParamTypeError(ConfParamException):
     def __init__(self, param: registry.ConfParam, value: Any):
         super().__init__(f'Configuration parameter has wrong type. (got {type(value)})', param)
+
+
+class LinkParamException(ConfigException):
+    def __init__(self, msg: str, link_param: registry.LinkParam):
+        super().__init__(f'{msg}\n{link_param}')
+
+class LinkParamUnsetError(LinkParamException):
+    def __init__(self, link_param: registry.LinkParam):
+        super().__init__('Configuration parameter unset.', link_param)
+
+class LinkParamWrongValueError(LinkParamException):
+    def __init__(self, link_param: registry.LinkParam, value: Any):
+        super().__init__(f'Configuration parameter has wrong value. (got {value})', link_param)
+
 
 
 def _check_param(param: registry.ConfParam, **config):
@@ -51,27 +69,17 @@ def _check_param_type(param: registry.ConfParam, **config):
         raise ConfParamTypeError(param, value)
 
 
-def _check_option_param(option_param: str,
-                        option_choices: Dict[str, str],
-                        visited_clases: List[str],
+def _check_link_param(link_param: registry.LinkParam,
+                        _visited_clases: List[str],
                         **config) -> int:
-    """
-    TODO handle defaults, and increment num_errors when the check fails
-    TODO raise CustomException
-    """
-    if option_param not in config:
-        print(f'Warning: Config parameter \'{option_param}\' is unset.')
-        warn(f'Config parameter \'{option_param}\' is unset.\n'
-             f'\tOptions: {list(option_choices.keys())}')
-    # TODO set default
+    if link_param.choice_param not in config:
+        raise LinkParamUnsetError(link_param)
 
-    choice = config[option_param]
-    if choice not in option_choices:
-        print(f'Error: Config parameter \'{option_param}\' must be set to one of '
-              f'\t{list(option_choices.keys())}')
-        raise RuntimeError
+    choice = config[link_param.choice_param]
+    if choice not in link_param.choice_options:
+        raise LinkParamWrongValueError(link_param, choice)
     
-    return check_config(option_choices[choice], visited_clases, **config)
+    return check_config(link_param.choice_options[choice], _visited_clases, **config)
 
 
 def check_config(check_class: str,
@@ -94,30 +102,40 @@ def check_config(check_class: str,
     num_errors = 0
 
     # Check parameters used by class
-    if check_class in registry.CONFIG_REG_BY_CLASS_NAME:
-        for param in registry.CONFIG_REG_BY_CLASS_NAME[check_class]:
+    if check_class in registry.REG_CONF_PARAMS_BY_CLASS_NAME:
+        for param in registry.REG_CONF_PARAMS_BY_CLASS_NAME[check_class]:
             try:
                 _check_param(param, **config)
             except ConfParamException as e:
                 num_errors += 1
                 print(e, file=sys.stderr)
 
-    # Check parameters that define optional links and (optionally) check the linked classes
-    if check_class in registry.CONFIG_REG_OPTIONAL_LINKS:
-        for opt_param, opt_choices in registry.CONFIG_REG_OPTIONAL_LINKS[check_class].items():
-            num_errors +=_check_option_param(opt_param, opt_choices, _visited_classes, **config)
+    # Check link parameters and check the linked classes (based on the set value)
+    if check_class in registry.REG_LINK_PARAMS:
+        for link_param in registry.REG_LINK_PARAMS[check_class]:
+            try:
+                num_errors += _check_link_param(link_param, _visited_classes, **config)
+            except LinkParamException as e:
+                num_errors += 1
+                print(e, file=sys.stderr)
 
     # Check classes directly linked to
-    if check_class in registry.CONFIG_REG_CLASS_LINKS:
-        for created_class in registry.CONFIG_REG_CLASS_LINKS[check_class]:
+    if check_class in registry.REG_CLASS_LINKS:
+        for created_class in registry.REG_CLASS_LINKS[check_class]:
             num_errors += check_config(created_class, _visited_classes, **config)
 
     return num_errors
+
+def validate_config(check_class: str, **conf):
+    """Run check_config but raise an exception at the end if errors were encountered"""
+    num_errors = check_config(check_class, **conf)
+    if num_errors > 0:
+        raise Exception(f'Found {num_errors} errors in configuration')
 
 
 if __name__ == '__main__':
     from config import default_conf
     from train import ModelTrainer
-    num_errors = check_config('ModelTrainer', **default_conf)
-    print(f'Found {num_errors} config errors.')
+    # validate_config('ModelTrainer', **default_conf)
+    validate_config('ModelTrainer')
 
