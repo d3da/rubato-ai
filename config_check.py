@@ -13,7 +13,7 @@ class ConfigException(Exception):
 
 class ConfParamException(ConfigException):
     def __init__(self, msg: str, param: registry.ConfParam):
-        super().__init__(f'{msg}\n{param}')
+        super().__init__(f'{msg}\n{param}\n')
 
 class ConfParamUnsetError(ConfParamException):
     def __init__(self, param: registry.ConfParam):
@@ -26,7 +26,7 @@ class ConfParamTypeError(ConfParamException):
 
 class LinkParamException(ConfigException):
     def __init__(self, msg: str, link_param: registry.LinkParam):
-        super().__init__(f'{msg}\n{link_param}')
+        super().__init__(f'{msg}\n{link_param}\n')
 
 class LinkParamUnsetError(LinkParamException):
     def __init__(self, link_param: registry.LinkParam):
