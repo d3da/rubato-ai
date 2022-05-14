@@ -43,6 +43,25 @@ class ConfParam:
                 f'\tType:       \t{self.conf_type}\n'
                 f'\tDescription:\t{self.description}')
 
+class LinkParam():
+    def __init__(self,
+                 from_class: str,
+                 choice_param: str,
+                 choice_options: Dict[str, str],
+                 description: str):
+        self.from_class = from_class
+        self.choice_param = choice_param
+        self.choice_options = choice_options
+        self.description = description
+
+    def __str__(self):
+        choices = '\n\t\t\t'.join(
+                [f'{val} -> {dest}' for val, dest in self.choice_options.items()])
+        return (f'\tName:   \t{self.choice_param}\n'
+                f'\tType:   \tLink Parameter\n'
+                f'\tChoices:\t{choices}\n'
+                f'\tDescription:\t{self.description}')
+
 
 def register_param(name: str,
                    conf_type: Type,
@@ -69,66 +88,12 @@ def register_param(name: str,
             REG_CONF_PARAMS_BY_CLASS_NAME[class_name] = set()
         REG_CONF_PARAMS_BY_CLASS_NAME[class_name].add(param)
 
-        update_docstring(cls, param)
+        add_param_docstring(cls, param)
 
         return cls
 
     return _wrap_class
 
-
-def update_docstring(cls, param):
-    """
-    Add registered parameter information to the class docstring
-
-    Since the registry is populated at import time, this can be used
-    to change auto-generated documentation like sphinx
-    """
-    if cls.__doc__ is None:
-        print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
-        return
-    cls.__doc__ += f'\n\nConfiguration parameter used:\n{param}'
-
-
-def register_links(created_classes: Set[str]):
-    """
-    When a link is registered to another class name, this indicates that all
-    parameters of the target class should be checked whenever the parameters
-    of the source class are checked.
-
-    For example, because RelativeGlobalAttention inherits from MultiHeadAttention,
-    a link is registered from 'RelativeGlobalAttention' to 'MultiHeadAttention',
-    because configuration parameters of MHA are always used whenever RGA is used.
-
-    For optional links, see register_link_parameter.
-    """
-    def _wrap_class(cls):
-        class_name = cls.__name__
-        # print(f'{class_name}: Registering link to {created_classes}\n')
-
-        REG_CLASS_LINKS[class_name] = created_classes
-        return cls
-
-    return _wrap_class
-
-
-class LinkParam():
-    def __init__(self,
-                 from_class: str,
-                 choice_param: str,
-                 choice_options: Dict[str, str],
-                 description: str):
-        self.from_class = from_class
-        self.choice_param = choice_param
-        self.choice_options = choice_options
-        self.description = description
-
-    def __str__(self):
-        choices = '\n\t\t\t'.join(
-                [f'{val} -> {dest}' for val, dest in self.choice_options.items()])
-        return (f'\tName:   \t{self.choice_param}\n'
-                f'\tType:   \tLink Parameter\n'
-                f'\tChoices:\t{choices}\n'
-                f'\tDescription:\t{self.description}')
 
 def register_link_parameter(choice_param: str,
                             choice_options: Dict[str, str],
@@ -161,9 +126,42 @@ def register_link_parameter(choice_param: str,
             REG_LINK_PARAMS[class_name] = set()
         REG_LINK_PARAMS[class_name].add(link_param)
 
-        update_docstring(cls, link_param)
+        add_param_docstring(cls, link_param)
 
         return cls
 
     return _wrap_class
     
+def register_links(created_classes: Set[str]):
+    """
+    When a link is registered to another class name, this indicates that all
+    parameters of the target class should be checked whenever the parameters
+    of the source class are checked.
+
+    For example, because RelativeGlobalAttention inherits from MultiHeadAttention,
+    a link is registered from 'RelativeGlobalAttention' to 'MultiHeadAttention',
+    because configuration parameters of MHA are always used whenever RGA is used.
+
+    For optional links, see register_link_parameter.
+    """
+    def _wrap_class(cls):
+        class_name = cls.__name__
+        # print(f'{class_name}: Registering link to {created_classes}\n')
+
+        REG_CLASS_LINKS[class_name] = created_classes
+        return cls
+
+    return _wrap_class
+
+
+def add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
+    """
+    Add registered parameter information to the class docstring
+
+    Since the registry is populated at import time, this can be used
+    to change auto-generated documentation like sphinx
+    """
+    if cls.__doc__ is None:
+        print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
+        return
+    cls.__doc__ += f'\n\nConfiguration parameter used:\n{param}'
