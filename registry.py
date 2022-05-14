@@ -44,6 +44,14 @@ class ConfParam:
         self.default = default
         self.description = description
 
+    def __str__(self):
+        used_by = ', '.join([x.class_name for x in CONFIG_REG_BY_NAME[self.name]])
+        return (f'\tName:       \t{self.name}\n'
+                f'\tUsed by:    \t{used_by}\n'
+                f'\tType:       \t{self.conf_type}\n'
+                f'\tDefault:    \t{self.default}\n'
+                f'\tDescription:\t{self.description}\n')
+
 
 def register_param(name: str,
                    conf_type: Type,

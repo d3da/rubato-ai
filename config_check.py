@@ -1,23 +1,15 @@
 import registry
 
-from typing import Dict, Optional, List, Any, Type
+from typing import Dict, Optional, List, Any
 from typing_inspect import is_union_type
 from warnings import warn
 
-
-# TODO make this a class method
-def param_info(param: registry.ConfParam) -> str:
-    used_by = ', '.join([x.class_name for x in registry.CONFIG_REG_BY_NAME[param.name]])
-    return (f'\tName:       \t{param.name}\n'
-            f'\tUsed by:    \t{used_by}\n'
-            f'\tType:       \t{param.conf_type}\n'
-            f'\tDefault:    \t{param.default}\n'
-            f'\tDescription:\t{param.description}\n')
+import sys
 
 
 class ConfParamException(Exception):
     def __init__(self, msg: str, param: registry.ConfParam):
-        super().__init__(f'{msg}\n{param_info(param)}')
+        super().__init__(f'{msg}\n{param}')
 
 class ConfParamUnsetError(ConfParamException):
     def __init__(self, param: registry.ConfParam):
@@ -62,7 +54,11 @@ def _check_param_type(param: registry.ConfParam, **config):
 def _check_option_param(option_param: str,
                         option_choices: Dict[str, str],
                         visited_clases: List[str],
-                        **config):
+                        **config) -> int:
+    """
+    TODO handle defaults, and increment num_errors when the check fails
+    TODO raise CustomException
+    """
     if option_param not in config:
         print(f'Warning: Config parameter \'{option_param}\' is unset.')
         warn(f'Config parameter \'{option_param}\' is unset.\n'
@@ -75,42 +71,53 @@ def _check_option_param(option_param: str,
               f'\t{list(option_choices.keys())}')
         raise RuntimeError
     
-    check_config(option_choices[choice], visited_clases, **config)
+    return check_config(option_choices[choice], visited_clases, **config)
 
 
 def check_config(check_class: str,
-                 visited_classes: Optional[List[str]] = None,
-                 **config):
+                 _visited_classes: Optional[List[str]] = None,
+                 **config) -> int:
     """
     Recursively validate a configuration dict against the registry of parameters.
     (it ensures parameters are defined and have the right type)
 
     Checks all parameters registered for the class with name 'check_class',
     as well as other classes that 'check_class' links to.
+
+    Returns the number of errors found in configuration
     """
-    if visited_classes is None:
-        visited_classes = []
-    if check_class in visited_classes:
+    if _visited_classes is None:
+        _visited_classes = []
+    if check_class in _visited_classes:
         raise RuntimeError(f'Error: Class {check_class} already visited.')
+
+    num_errors = 0
 
     # Check parameters used by class
     if check_class in registry.CONFIG_REG_BY_CLASS_NAME:
         for param in registry.CONFIG_REG_BY_CLASS_NAME[check_class]:
-            _check_param(param, **config)
+            try:
+                _check_param(param, **config)
+            except ConfParamException as e:
+                num_errors += 1
+                print(e, file=sys.stderr)
 
     # Check parameters that define optional links and (optionally) check the linked classes
     if check_class in registry.CONFIG_REG_OPTIONAL_LINKS:
         for opt_param, opt_choices in registry.CONFIG_REG_OPTIONAL_LINKS[check_class].items():
-            _check_option_param(opt_param, opt_choices, visited_classes, **config)
+            num_errors +=_check_option_param(opt_param, opt_choices, _visited_classes, **config)
 
     # Check classes directly linked to
     if check_class in registry.CONFIG_REG_CLASS_LINKS:
         for created_class in registry.CONFIG_REG_CLASS_LINKS[check_class]:
-            check_config(created_class, visited_classes, **config)
+            num_errors += check_config(created_class, _visited_classes, **config)
+
+    return num_errors
 
 
 if __name__ == '__main__':
     from config import default_conf
     from train import ModelTrainer
-    check_config('ModelTrainer', **default_conf)
+    num_errors = check_config('ModelTrainer', **default_conf)
+    print(f'Found {num_errors} config errors.')
 
