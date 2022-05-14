@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+#
+# Requires sphinx
+
+cd $( dirname "$0" )
+sphinx-apidoc -f -o docs/source/ rubato_ai/
+
+cd docs/
+make clean; make html
