@@ -3,3 +3,6 @@ tensorflow~=2.7.0
 mido~=1.2.10
 numpy~=1.21.4
 typing-inspect
+
+# For sphinx autodoc html output:
+furo

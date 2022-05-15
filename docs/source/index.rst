@@ -10,6 +10,7 @@ Welcome to rubato-ai's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   rubato_ai
 
 
 Indices and tables
