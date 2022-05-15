@@ -66,8 +66,8 @@ class StandardLearningRateSchedule:
 @register_param('adam_eps', float, 'Epsilon parameter of Adam optimizer')
 class AdamOptimizer(tf.keras.optimizers.Adam):
     """Wrapper for tf.keras.optimizers.Adam that registers config paramters"""
-    def __init__(self, learning_rate: Union[int, Callable], **config):
+    def __init__(self, adam_learning_rate: Union[int, Callable], **config):
         super().__init__(beta_1=config.get('adam_beta1'),
                          beta_2=config.get('adam_beta1'),
                          epsilon=config.get('adam_eps'),
-                         learning_rate=learning_rate)
+                         learning_rate=adam_learning_rate)

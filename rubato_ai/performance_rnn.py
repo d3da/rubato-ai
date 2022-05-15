@@ -8,8 +8,13 @@ import time
 import tensorflow as tf
 
 from .base_model import PerformanceModel
+from .registry import register_param, register_links
 
 
+@register_param('rnn_units', int, 'Hidden dimension of the RNN')
+@register_param('drop_rate', float,
+                'Dropout rate to apply to RNN layers')
+@register_links({'PerformanceModel'})
 class PerformanceRNNModel(PerformanceModel):
     """
     seq_length: 512a
@@ -24,38 +29,43 @@ class PerformanceRNNModel(PerformanceModel):
     LSTM    -> (64, 512a, 512b)
     LSTM    -> (64, 512a, 512b)
     Dense   -> (64, 512a, 413)  (no activation)
+
+    TODO parametric number of layers
+    TODO select 'lstm' | 'gru'
+    TODO test
+
+    TODO it doesn't work with ``config['mixed_precision']``
     """
     def __init__(self,
                  model_name,
                  input_loader,
                  restore_checkpoint,
-                 vocab_size,
-                 rnn_units,
-                 dropout,
                  **config):
         super().__init__(model_name, input_loader, restore_checkpoint, **config)
-        self.vocab_size = vocab_size
+        self._vocab_size = self.input_loader.vocab_size
+        self._rnn_units = config['rnn_units']
+        self._drop_rate = config['drop_rate']
 
         # Model layers
-        self.lstm1 = tf.keras.layers.LSTM(rnn_units,
+        self.lstm1 = tf.keras.layers.LSTM(self._rnn_units,
                                           return_sequences=True,
                                           return_state=True,
-                                          dropout=dropout)
-        self.lstm2 = tf.keras.layers.LSTM(rnn_units,
+                                          dropout=self._drop_rate)
+        self.lstm2 = tf.keras.layers.LSTM(self._rnn_units,
                                           return_sequences=True,
                                           return_state=True,
-                                          dropout=dropout)
-        self.lstm3 = tf.keras.layers.LSTM(rnn_units,
+                                          dropout=self._drop_rate)
+        self.lstm3 = tf.keras.layers.LSTM(self._rnn_units,
                                           return_sequences=True,
                                           return_state=True,
-                                          dropout=dropout)
-        self.dense = tf.keras.layers.Dense(self.vocab_size)
+                                          dropout=self._drop_rate)
+        self.dense = tf.keras.layers.Dense(self._vocab_size)
 
     def call(self, inputs, training=False, states=None, return_states=False):
         """
         Use builtin self.__call__() instead
         """
-        x = tf.one_hot(inputs, self.vocab_size)
+        x = tf.one_hot(inputs, self._vocab_size)
         if states is None:
             s_1, c_1 = self.lstm1.get_initial_state(x)
             s_2, c_2 = self.lstm2.get_initial_state(x)

@@ -34,12 +34,7 @@ default_conf = {
     'attn_heads': 8,
     'ff_dim': 1024,
     'attn_type': 'relative',
-    'max_relative_pos': 1024,  # TODO subparam?
-
-
-    # Optimizer settings + label smoothing
-    # 'learning_rate_schedule': 'standard',
-    # 'learning_rate': 1e-3,
+    'max_relative_pos': 1024,
     'learning_rate_schedule': 'noam',
     'warmup_steps': 4000,
     'adam_beta1': 0.9,
@@ -47,6 +42,17 @@ default_conf = {
     'adam_eps': 1e-9,
     'label_smoothing': 0.1,
 
+    # Model settings (RNN)
+    # 'mixed_precision': False,
+    # 'model_type': 'rnn',
+    # 'drop_rate': 0.,
+    # 'rnn_units': 512,
+    # 'learning_rate_schedule': 'standard',
+    # 'learning_rate': 1e-3,
+    # 'adam_beta1': 0.9,
+    # 'adam_beta2': 0.98,
+    # 'adam_eps': 1e-9,
+    # 'label_smoothing': 0.0,
 
     # Train loop settings
     'tensorboard_update_freq': 25,
