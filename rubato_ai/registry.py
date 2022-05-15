@@ -74,7 +74,15 @@ def register_param(name: str,
     Register a hyperparameter to the parameter registry.
     Use as class decorator to define the config parameters used by that class.
 
-    TODO handle two classes using same parameter
+    For example, here is how we would register the use of the config parameter 'sequence_length'
+    for a class::
+
+        @register_param('sequence_length', int,
+                'Maximum input sequence length')
+        class MultiHeadAttention(tf.keras.layers.Layer):
+            ...
+
+    TODO handle two classes using same parameter (check the type or sth)
     """
 
     def _wrap_class(cls):
@@ -92,7 +100,7 @@ def register_param(name: str,
             REG_CONF_PARAMS_BY_CLASS_NAME[class_name] = set()
         REG_CONF_PARAMS_BY_CLASS_NAME[class_name].add(param)
 
-        add_param_docstring(cls, param)
+        _add_param_docstring(cls, param)
 
         return cls
 
@@ -111,7 +119,7 @@ def register_link_param(choice_param: str,
     allowing the type of attention layer to be selected. When config['attn_type']
     is set to 'relative', the TransformerBlock creates a RelativeGlobalAttention
     layer. When set to 'absolute', a MultiHeadAttention layer is created.
-    This relation is defined using this function as decorator:
+    This relation is defined using this function as decorator::
 
         @register_link_parameter('attn_type', {
             'absolute':'MultiHeadAttention',
@@ -130,7 +138,7 @@ def register_link_param(choice_param: str,
             REG_LINK_PARAMS[class_name] = set()
         REG_LINK_PARAMS[class_name].add(link_param)
 
-        add_param_docstring(cls, link_param)
+        _add_param_docstring(cls, link_param)
 
         return cls
 
@@ -144,9 +152,13 @@ def register_links(created_classes: Set[str]):
 
     For example, because RelativeGlobalAttention inherits from MultiHeadAttention,
     a link is registered from 'RelativeGlobalAttention' to 'MultiHeadAttention',
-    because configuration parameters of MHA are always used whenever RGA is used.
+    because configuration parameters of MHA are always used whenever RGA is used::
 
-    For optional links, see register_link_parameter.
+        @register_links({'MultiHeadAttention'})
+        class RelativeGlobalAttention(MultiHeadAttention):
+            ...
+
+    For optional links, see :meth:`register_link_param`.
     """
     def _wrap_class(cls):
         class_name = cls.__name__
@@ -154,13 +166,13 @@ def register_links(created_classes: Set[str]):
 
         REG_CLASS_LINKS[class_name] = created_classes
 
-        add_link_docstring(cls, created_classes)
+        _add_link_docstring(cls, created_classes)
         return cls
 
     return _wrap_class
 
 
-def add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
+def _add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
     """
     Add registered parameter information to the class docstring
 
@@ -172,7 +184,7 @@ def add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
         return
     cls.__doc__ += f'\n\n| Configuration parameter used:\n{param}\n'
 
-def add_link_docstring(cls, targets: Set[str]):
+def _add_link_docstring(cls, targets: Set[str]):
     """
     Add linked classses to docstring. Links are formatted for sphinx
     """
