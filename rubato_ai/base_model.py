@@ -85,10 +85,10 @@ class PerformanceModel(tf.keras.Model):
     def train(self, epochs: int) -> None:
         """
         Note:
-            Instead of simply calling self.fit() with epoch=epochs,
-              we call fit() once for each training epoch.
+            Instead of simply calling ``self.fit()`` with epoch=epochs,
+            we call ``fit(epochs=1)`` once for each training epoch.
             This is because the train dataset varies in length between epochs,
-              which fit() cannot handle normally.
+            which ``fit()`` cannot handle normally.
             The drawback is that we don't get an epoch ETA timer.
         """
         for e in range(epochs):

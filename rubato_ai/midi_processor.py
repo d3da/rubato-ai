@@ -87,13 +87,14 @@ class MidiProcessor:
                    midi: mido.MidiFile,
                    pitch_augmentation: int = 0,
                    time_augmentation: float = 1.0) -> List["Event"]:
-        """Parse a midi file to a sequence, optionally augmenting pitch and time values.
+        """
+        Parse a midi file to a sequence, optionally augmenting pitch and time values.
 
         :param midi: The MidiFile to parse
         :param pitch_augmentation: Pitch added to every note in the sequence, in semitones.
-        Augmenting pitch by 0 semitones corresponds to no augmenation.
+            Augmenting pitch by 0 semitones corresponds to no augmenation.
         :param time_augmentation: Multiplier for time values.
-        Augmenting time by 1.0x corresponds to no augmentation.
+            Augmenting time by 1.0x corresponds to no augmentation.
 
         :return: The events that make up the processed input.
         """

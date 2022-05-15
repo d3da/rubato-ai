@@ -42,10 +42,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     """
     Masked MultiHeadAttention as described in Vaswani et al. (2017)
 
-    https://nn.labml.ai/transformers/mha.html
+    Based loosely on `<https://nn.labml.ai/transformers/mha.html>`_.
 
     Adjusted to allow for a query/key dimension (_d_k) that differs from the
-        value and output dimensions (embed_dim).
+    value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
     """
     def __init__(self, **config):

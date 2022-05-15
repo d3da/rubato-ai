@@ -199,7 +199,7 @@ def _add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
     if cls.__doc__ is None:
         print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
         return
-    cls.__doc__ += f'\n\n| Configuration parameter used:\n{param}\n'
+    cls.__doc__ += f'\n\n| Configuration parameter used:\n\n{param}\n'
 
 def _add_link_docstring(cls, targets: Set[str]):
     """
