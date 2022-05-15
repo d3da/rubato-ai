@@ -1,8 +1,7 @@
 from . import registry
 
-from typing import Dict, Optional, List, Any
+from typing import Optional, List, Any
 from typing_inspect import is_union_type
-from warnings import warn
 
 import sys
 
@@ -36,6 +35,25 @@ class LinkParamWrongValueError(LinkParamException):
     def __init__(self, link_param: registry.LinkParam, value: Any):
         super().__init__(f'Configuration parameter has wrong value. (got {value})', link_param)
 
+
+def check_unused_params(**config):
+    """
+    Warn the user about config parameters in the config dictionary that
+    are not registered anywhere in the imported modules.
+    """
+    for param_name in config:
+        # Check if parameter name is found in conf params
+        if param_name not in registry.REG_CONF_PARAMS_BY_NAME:
+
+            # Check if param name is used by any registered link params
+            found_usage = False
+            for params_by_class in registry.REG_LINK_PARAMS.values():
+                for link_param in params_by_class:
+                    if param_name == link_param.choice_param:
+                        found_usage = True
+
+            if not found_usage:
+                print(f'Warning: Parameter \'{param_name}\' is unknown', file=sys.stderr)
 
 
 def _check_param(param: registry.ConfParam, **config):
@@ -139,7 +157,14 @@ def check_config(check_class: str,
     return num_errors
 
 def validate_config(check_class: str, **conf):
-    """Run check_config but raise an exception at the end if errors were encountered"""
+    """
+    Run :meth:`check_config` but raise an exception at the end if errors were encountered,
+    and warn about unused parameters beforehand (see :meth:`check_unused_params`)
+
+    :param check_class: Name of class to start validation at
+    :param conf: Configuration dictionary
+    """
+    check_unused_params(**conf)
     num_errors = check_config(check_class, **conf)
     if num_errors > 0:
         raise ConfigException(f'Found {num_errors} errors in configuration')
