@@ -1,8 +1,22 @@
 """
 Keep a global registry of hyperparameters used.
 
-Register a parameter directly accessed in a class by decorating the class with @register_param.
-If a class creates other classes (having their own parameters) in its __init__ method, decorate the class with @register_creates.
+Contain functions that are used as decorators for classes to register
+their usage of configuration parameters. This allows us to declare configuration parameters,
+in the code not far from the actual usage of the parameter,
+and see which classes use which parameters.
+
+In addition, we define the type that the setting of a config parameter should have,
+as well as a description.
+
+Since the decorators run at import time, we populate the register as
+soon as the relevant classes are imported.
+This allows to change the docstrings of those classes at import time,
+documenting which parameters are used just by registering them.
+This may save some effort when writing that pesky documentation.
+
+[[ config_check ]]
+[[ links and link parameters ]]
 """
 import os
 import sys
@@ -39,9 +53,9 @@ class ConfParam:
     def __str__(self):
         used_by = ', '.join(f':class:`{p.class_name}`' for p in REG_CONF_PARAMS_BY_NAME[self.name])
         return (f'=========== ==================\n'
-                f'Name        {self.name}\n'
+                f'Name        ``{self.name}``\n'
                 f'Used by     {used_by}\n'
-                f'Type        {self.conf_type}\n'
+                f'Type        ``{self.conf_type}``\n'
                 f'Description {self.description}\n'
                 f'=========== ==================\n')
 
@@ -58,9 +72,9 @@ class LinkParam():
         self.description = description
 
     def __str__(self):
-        choices = '\n| '.join(f'\'{k}\' -> :class:`{v}`' for k, v in self.choice_options.items())
+        choices = '\n\n            '.join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
         return (f'=========== ==================\n'
-                f'Name        {self.choice_param}\n'
+                f'Name        ``{self.choice_param}``\n'
                 f'Type        Link Parameter\n'
                 f'Choices     {choices}\n'
                 f'Description {self.description}\n'
@@ -74,13 +88,14 @@ def register_param(name: str,
     Register a hyperparameter to the parameter registry.
     Use as class decorator to define the config parameters used by that class.
 
-    For example, here is how we would register the use of the config parameter 'sequence_length'
-    for a class::
+    Example:
+        Here is how we would register the use of the config parameter ``'sequence_length'``
+        for a class::
 
-        @register_param('sequence_length', int,
-                'Maximum input sequence length')
-        class MultiHeadAttention(tf.keras.layers.Layer):
-            ...
+            @register_param('sequence_length', int,
+                            'Maximum input sequence length')
+            class MultiHeadAttention(...):
+                ...
 
     TODO handle two classes using same parameter (check the type or sth)
     """
@@ -115,19 +130,20 @@ def register_link_param(choice_param: str,
     the target class depends on the value of a config parameter.
 
     Example:
-    The class TransformerBlock defines a link parameter with the name 'attn_type',
-    allowing the type of attention layer to be selected. When config['attn_type']
-    is set to 'relative', the TransformerBlock creates a RelativeGlobalAttention
-    layer. When set to 'absolute', a MultiHeadAttention layer is created.
-    This relation is defined using this function as decorator::
+        The class :class:`TransformerBlock` defines a link parameter with the name ``'attn_type'``,
+        allowing the type of attention layer to be selected. When ``config['attn_type']``
+        is set to ``'relative'``, the :class:`TransformerBlock` creates a :class:`RelativeGlobalAttention`
+        layer. When set to ``'absolute'``, a :class:`MultiHeadAttention` layer is created instead.
 
-        @register_link_parameter('attn_type', {
-            'absolute':'MultiHeadAttention',
-            'relative':'RelativeGlobalAttention'
-            }
-        )
-        class TransformerBlock:
-            ...
+        This relation is defined using this function as decorator::
+
+            @register_link_parameter('attn_type', {
+                'absolute':'MultiHeadAttention',
+                'relative':'RelativeGlobalAttention'
+                }
+            )
+            class TransformerBlock(...):
+                ...
     """
     def _wrap_class(cls):
         class_name = cls.__name__
@@ -150,13 +166,14 @@ def register_links(created_classes: Set[str]):
     parameters of the target class should be checked whenever the parameters
     of the source class are checked.
 
-    For example, because RelativeGlobalAttention inherits from MultiHeadAttention,
-    a link is registered from 'RelativeGlobalAttention' to 'MultiHeadAttention',
-    because configuration parameters of MHA are always used whenever RGA is used::
+    Example:
+        Because :class:`RelativeGlobalAttention` inherits from :class:`MultiHeadAttention`,
+        a link is registered from ``'RelativeGlobalAttention'`` to ``'MultiHeadAttention'``,
+        since configuration parameters of MHA are always used whenever RGA is used::
 
-        @register_links({'MultiHeadAttention'})
-        class RelativeGlobalAttention(MultiHeadAttention):
-            ...
+            @register_links({'MultiHeadAttention'})
+            class RelativeGlobalAttention(MultiHeadAttention):
+                ...
 
     For optional links, see :meth:`register_link_param`.
     """
