@@ -1,12 +1,14 @@
 """
 Command-line interface to RubatoAI.
 
-.. todo:
+.. todo::
     - number of epochs to train for
     - Sampling (maybe using avg_checkpoints)
     - Define action using sub_commands
           `<https://docs.python.org/dev/library/argparse.html#sub-commands>`_
     - move model-name to config.py
+    - Flag to skip config check
+    - Flag to skip checkpoint compatibility check
 """
 import argparse
 

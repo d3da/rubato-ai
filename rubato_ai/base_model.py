@@ -1,6 +1,3 @@
-"""
-
-"""
 import os
 import time
 
@@ -26,11 +23,17 @@ class BaseModel(tf.keras.Model):
     This class can be considered abstract and is not instantiated directly.
 
     This class handles the following:
-        - Setup the optimizer
+        - Setup the optimizer + loss
         - Run the train() loop
         - Keep persistent batch / epoch counters
         - Save checkpoints
+
+    .. todo::
+        - Move checkpoint compatibility logic to a different (Mixin) class
+        - Instantiate the optimizer and loss in RubatoAI (like the input loader)
     """
+    _config_attr_prefix = '_config_attr_prefix'
+
     def __init__(self,
                  model_name: str,
                  input_loader: PerformanceInputLoader,
@@ -50,6 +53,12 @@ class BaseModel(tf.keras.Model):
         self.compile(optimizer=self.optimizer, loss=self.loss,
                      metrics=['accuracy'])
 
+        # Save all config items as class attributes, so they are saved to any checkpoints as well
+        # Only objects trackable by tensorflow are saved to the checkpoint
+        for k, v in config.items():
+            self.__setattr__(self._config_attr_prefix+k, tf.Variable(v, trainable=False))
+
+        # Setup the checkpoint manager
         checkpoint_dir = os.path.join(self.train_dir, 'checkpoints', model_name)
         checkpoint = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
         self.checkpoint_mgr = tf.train.CheckpointManager(
@@ -57,11 +66,15 @@ class BaseModel(tf.keras.Model):
             directory=checkpoint_dir,
             max_to_keep=config['kept_checkpoints']
         )
+        self._restored_checkpoint = False
         if restore_checkpoint:
-            checkpoint.restore(self.checkpoint_mgr.latest_checkpoint)
+            self._ckpt_restore = checkpoint.restore(self.checkpoint_mgr.latest_checkpoint)
             if self.batch_count != 0:
+                self._restored_checkpoint = True
                 print(f'Restored checkpoint (batch {self.batch_count}, epoch {self.epoch_count})')
             else:
+                # We are assuming that this means we are creating a new model
+                # TODO check whether a checkpoint exists for model_name?
                 print('Initialized model (we\'re at batch zero)')
 
         self.callbacks = [TrainCallback(config)]
@@ -95,6 +108,25 @@ class BaseModel(tf.keras.Model):
                      callbacks=self.callbacks)
             print(f'Finished training epoch {e+1}/{epochs}.')
 
+    def check_checkpoint_compatibility(self, config: ConfDict) -> None:
+        """
+        Check if the supplied config differs from the the loaded checkpoint's config.
+        If any config dict values have been changed, error out.
+
+        .. todo::
+            - Throw a CustomError
+            - Error only for config params that break compatibility (warn for the others)
+            - Error only for config params that are used (use with config_check check)
+            - Accumulate errors and error out at the end (like validate_config does)
+            - Print the previous / current values
+        """
+        if self._restored_checkpoint:
+            for param_name, value in config.items():
+                old_value = getattr(self, self._config_attr_prefix + param_name).value()
+
+                if old_value != value:
+                    self._ckpt_restore.expect_partial()  # Don't warn about unused ckpt objects on exit
+                    raise ValueError(f'Changing the value of {param_name} from {old_value} to {value} has broken checkpoint compatibility')
 
 
 

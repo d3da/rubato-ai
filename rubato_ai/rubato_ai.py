@@ -35,6 +35,8 @@ class RubatoAI:
                                              restore_checkpoint,
                                              config)
 
+        self.model.check_checkpoint_compatibility(config)
+
         self.model.__call__(tf.zeros((config['batch_size'],
                                       config['sequence_length']), dtype=tf.int32))
         self.model.summary()
