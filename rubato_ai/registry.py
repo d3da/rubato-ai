@@ -109,7 +109,8 @@ def register_param(name: str,
     After adding the parameter to the registry, an overview of the parameter
     is appended to the class docstring, formatted in reStructuredText.
 
-    TODO handle two classes using same parameter (check the type or sth)
+    .. todo::
+        handle two classes using same parameter (check the type or sth)
     """
 
     def _wrap_class(cls):

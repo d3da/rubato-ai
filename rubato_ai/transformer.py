@@ -235,7 +235,8 @@ class PositionalEncoding(tf.keras.layers.Layer):
 
     From `<https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder>`_
 
-    TODO learned/linear embeddings with hparams
+    .. todo::
+        learned/linear embeddings with hparams
     """
     def __init__(self, max_seq_len, embed_dim):
         super().__init__()
@@ -303,6 +304,12 @@ class TransformerModel(PerformanceModel):
 
     The input and output embeddings use the same weights but transposed.
     This was described in the original Transformer paper but not present in every implementation.
+
+    .. todo::
+        Shared or separate in/output embedding weights
+
+    .. todo::
+        Sinusoidal / None positional encodings
     """
 
     def __init__(self,

@@ -30,11 +30,14 @@ class PerformanceRNNModel(PerformanceModel):
     LSTM    -> (64, 512a, 512b)
     Dense   -> (64, 512a, 413)  (no activation)
 
-    TODO parametric number of layers
-    TODO select 'lstm' | 'gru'
-    TODO test
-
-    TODO it doesn't work with ``config['mixed_precision']``
+    .. todo::
+        parametric number of layers
+    .. todo::
+        select 'lstm' or 'gru'
+    .. todo::
+        test this model
+    .. todo::
+        it doesn't work with ``config['mixed_precision']``
     """
     def __init__(self,
                  model_name,

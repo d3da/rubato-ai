@@ -25,9 +25,11 @@ class MidiProcessor:
     to supply the model with information on when a piece starts; these tokens are added
     only at the beginning and end of a piece, not at sliding windows in the middle of the piece.
 
-    TODO maybe remove <time_shift: 0> and <velocity: 0> events?
+    .. todo::
+        maybe remove <time_shift: 0> and <velocity: 0> events?
 
-    FIXME bug in _handle_time_shift (see :func:`test_conversions` below)
+    .. todo::
+        fix bug in _handle_time_shift (see :func:`test_conversions` below)
 
     Turn a midi file into tokens:
     -> load midi file from disk

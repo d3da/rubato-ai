@@ -39,8 +39,9 @@ class TrainCallback(tf.keras.callbacks.Callback):
     tensorboard graphs to span multiple runs.
 
 
-    TODO this class has become bloated and should be split up into multiple Callbacks
-    and moved to a different file.
+    .. todo::
+        this class has become bloated and should be split up into multiple Callbacks
+        and moved to a different file.
 
     """
     def __init__(self, **config):

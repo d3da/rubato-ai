@@ -3,12 +3,9 @@
 """
 import os
 import time
-from typing import Generator
 
-import numpy as np
 import tensorflow as tf
 
-from .midi_processor import MidiProcessor
 from .optimizer import Optimizer
 from .callbacks import TrainCallback
 

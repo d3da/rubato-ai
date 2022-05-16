@@ -1,4 +1,7 @@
-"""TODO this needs testing and improvement. I'm not sure it works at all"""
+"""
+.. todo::
+    This class needs proper testing and improvements. I'm not sure it works at all.
+"""
 import os
 
 import tensorflow as tf

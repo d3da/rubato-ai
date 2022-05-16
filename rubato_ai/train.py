@@ -22,8 +22,10 @@ class ModelTrainer:
     'Start' class used to instantiate the input loader and a selected subclass of PerformanceModel,
     based on the supplied configuration dictionary.
 
-    TODO think of a better name for this class (or change PerformanceModel.__name__)
-    TODO move this to base_model or something?
+    .. todo::
+        think of a better name for this class (or change PerformanceModel.__name__)
+    .. todo::
+        move this to base_model or something?
     """
 
     def __init__(self, model_name: str, restore_checkpoint: bool, **config):
