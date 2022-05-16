@@ -17,15 +17,10 @@ import tensorflow as tf
 @register_param('sequence_length', int, '(Maximum) input sequence length')
 @register_param('mixed_precision', bool, 'Enable mixed_float16 precision in session')
 @register_links({'PerformanceInputLoader'})
-class ModelTrainer:
+class RubatoAI:
     """
     'Start' class used to instantiate the input loader and a selected subclass of BaseModel,
     based on the supplied configuration dictionary.
-
-    .. todo::
-        think of a better name for this class
-    .. todo::
-        move this to base_model or something?
     """
 
     def __init__(self, model_name: str, restore_checkpoint: bool, **config):
@@ -62,7 +57,7 @@ class ModelTrainer:
 
 
 def main():
-    trainer = ModelTrainer('ModelName', restore_checkpoint=False, **default_conf)
+    trainer = RubatoAI('ModelName', restore_checkpoint=False, **default_conf)
     trainer.train(10)
 
 if __name__ == '__main__':

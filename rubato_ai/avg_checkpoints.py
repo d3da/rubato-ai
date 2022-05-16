@@ -9,7 +9,7 @@ import tensorflow as tf
 from .base_model import BaseModel
 from .config import default_conf, PROJECT_DIR
 from .midi_processor import MidiProcessor
-from .train import ModelTrainer
+from .rubato_ai import RubatoAI
 
 
 def load_averaged_weights(model: BaseModel, last_n=20) -> None:
@@ -48,7 +48,7 @@ def load_averaged_weights(model: BaseModel, last_n=20) -> None:
     # model.checkpoint_mgr = None
 
 
-def average_checkpoints(trainer: ModelTrainer):
+def average_checkpoints(trainer: RubatoAI):
     load_averaged_weights(trainer.model)
     midi_processor = MidiProcessor(**default_conf)
     music = trainer.model.sample_music(sample_length=1024, temperature=0.8, verbose=True)
@@ -66,5 +66,5 @@ def average_checkpoints(trainer: ModelTrainer):
     exit()  # Exit so we don't accidently continue training and overwrite a checkpoint
 
 if __name__ == '__main__':
-    p = ModelTrainer('foobar', False, **default_conf)
+    p = RubatoAI('foobar', False, **default_conf)
     average_checkpoints(p)

@@ -172,7 +172,7 @@ def validate_config(check_class: str, **conf):
 
 if __name__ == '__main__':
     from .config import default_conf
-    from .train import ModelTrainer
-    validate_config('ModelTrainer', **default_conf)
-    # validate_config('ModelTrainer')
+    from .rubato_ai import RubatoAI
+    validate_config('RubatoAI', **default_conf)
+    # validate_config('RubatoAI')
 

@@ -84,10 +84,10 @@ rubato\_ai.rnn module
    :no-undoc-members:
    :show-inheritance:
 
-rubato\_ai.train module
------------------------
+rubato\_ai.rubato\_ai module
+----------------------------
 
-.. automodule:: rubato_ai.train
+.. automodule:: rubato_ai.rubato_ai
    :members:
    :no-undoc-members:
    :show-inheritance:
