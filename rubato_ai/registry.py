@@ -30,9 +30,10 @@ This may save some effort when writing that pesky documentation.
 import os
 import sys
 
-from typing import Dict, Set, Union, Type
+from typing import Dict, Set, Union, Type, Any
 
 PathLike = Union[str, bytes, os.PathLike]
+ConfDict = Dict[str, Any]
 
 
 # All config parameters, accessed by parameter name

@@ -2,7 +2,7 @@ from .base_model import BaseModel
 from .transformer import TransformerModel
 from .rnn import RnnModel
 from .input_loader import PerformanceInputLoader
-from .registry import register_param, register_link_param, register_links
+from .registry import register_param, register_link_param, register_links, ConfDict
 from .config_check import validate_config
 
 import tensorflow as tf
@@ -21,19 +21,19 @@ class RubatoAI:
     based on the supplied configuration dictionary.
     """
 
-    def __init__(self, model_name: str, restore_checkpoint: bool, **config):
-        validate_config(type(self).__name__, **config)
+    def __init__(self, model_name: str, restore_checkpoint: bool, config: ConfDict):
+        validate_config(type(self).__name__, config=config)
 
         self.mixed_precision = config['mixed_precision']
         if self.mixed_precision:
             print('>>>>> Enabling mixed precision floats')
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-        self.input_loader = PerformanceInputLoader(**config)
+        self.input_loader = PerformanceInputLoader(config)
         self.model = self._model_from_config(model_name,
                                              self.input_loader,
                                              restore_checkpoint,
-                                             **config)
+                                             config)
 
         self.model.__call__(tf.zeros((config['batch_size'],
                                       config['sequence_length']), dtype=tf.int32))
@@ -43,11 +43,11 @@ class RubatoAI:
     def _model_from_config(model_name: str,
                            input_loader: PerformanceInputLoader,
                            restore_checkpoint: bool,
-                           **config) -> BaseModel:
+                           config: ConfDict) -> BaseModel:
         if config['model_type'] == 'transformer':
-            return TransformerModel(model_name, input_loader, restore_checkpoint, **config)
+            return TransformerModel(model_name, input_loader, restore_checkpoint, config)
         if config['model_type'] == 'rnn':
-            return RnnModel(model_name, input_loader, restore_checkpoint, **config)
+            return RnnModel(model_name, input_loader, restore_checkpoint, config)
         raise ValueError
 
     def train(self, epochs: int):

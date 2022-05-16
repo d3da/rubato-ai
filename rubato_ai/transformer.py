@@ -8,9 +8,9 @@ import tensorflow as tf
 
 from typing import Optional
 
+from .input_loader import PerformanceInputLoader
 from .base_model import BaseModel
-
-from .registry import register_param, register_links, register_link_param
+from .registry import register_param, register_links, register_link_param, ConfDict
 
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
@@ -48,7 +48,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
     value and output dimensions (embed_dim).
     These are called (att) and (hs) respectively in Huang et al. (2018)
     """
-    def __init__(self, **config):
+    def __init__(self, config: ConfDict):
         super().__init__()
         self._num_heads = config['attn_heads']
         self._embed_dim = config['embed_dim']
@@ -124,8 +124,8 @@ class RelativeGlobalAttention(MultiHeadAttention):
     A variation of :class:`MultiHeadAttention`, where information about distance
     between queries and keys is added to the dot-product attention.
     """
-    def __init__(self, **config):
-        super().__init__(**config)
+    def __init__(self, config: ConfDict):
+        super().__init__(config)
 
         max_relative_pos = config.get('max_relative_pos')
         if max_relative_pos is None:
@@ -194,9 +194,9 @@ class TransformerBlock(tf.keras.layers.Layer):
     since we are using the decoder only.
     """
 
-    def __init__(self, name='transformer_block', **config):
+    def __init__(self, config: ConfDict, name='transformer_block'):
         super().__init__(name=name)
-        self.attn = self._attn_layer_from_config(**config)
+        self.attn = self._attn_layer_from_config(config)
         self.ffn = tf.keras.Sequential([
             tf.keras.layers.Dense(config['ff_dim'], activation='relu'),
             tf.keras.layers.Dense(config['embed_dim'])])
@@ -220,11 +220,11 @@ class TransformerBlock(tf.keras.layers.Layer):
         return self.layernorm2(attn_output + ffn_output, training=training)
 
     @staticmethod
-    def _attn_layer_from_config(**config):
+    def _attn_layer_from_config(config: ConfDict):
         if config['attn_type'] == 'absolute':
-            return MultiHeadAttention(**config)
+            return MultiHeadAttention(config)
         if config['attn_type'] == 'relative':
-            return RelativeGlobalAttention(**config)
+            return RelativeGlobalAttention(config)
         raise ValueError('Unsupported config.attn_type,'
                          'please select either \'absolute\' or \'relative\'.')
 
@@ -313,11 +313,11 @@ class TransformerModel(BaseModel):
     """
 
     def __init__(self,
-                 model_name,
-                 input_loader,
-                 restore_checkpoint,
-                 **config):
-        super().__init__(model_name, input_loader, restore_checkpoint, **config)
+                 model_name: str,
+                 input_loader: PerformanceInputLoader,
+                 restore_checkpoint: bool,
+                 config: ConfDict):
+        super().__init__(model_name, input_loader, restore_checkpoint, config)
         self._vocab_size = self.input_loader.vocab_size
         self._sequence_length = config['sequence_length']
         self._embed_dim = config['embed_dim']
@@ -327,7 +327,7 @@ class TransformerModel(BaseModel):
         self.inp_dropout = tf.keras.layers.Dropout(config['drop_rate'])
 
         self.transformer_stack = [
-            TransformerBlock(name=f'transformer_block_{i}', **config)
+            TransformerBlock(config, name=f'transformer_block_{i}')
             for i in range(config['num_layers'])
         ]
         self.out_emb = self.inp_emb  # last projection shares weights with input embedding

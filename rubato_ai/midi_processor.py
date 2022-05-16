@@ -3,7 +3,7 @@ https://arxiv.org/abs/1808.03715v1
 """
 from typing import List, Iterable
 
-from .registry import register_param
+from .registry import register_param, ConfDict
 
 import mido
 
@@ -47,7 +47,7 @@ class MidiProcessor:
     sustain_control_channel = 64
     sustain_threshold = 64
 
-    def __init__(self, **config):
+    def __init__(self, config: ConfDict):
         """Create a MidiProcessor with specific settings.
 
         :param time_granularity: Size of smallest time unit, per second.

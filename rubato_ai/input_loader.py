@@ -4,7 +4,7 @@ This class is messy, and will likely break with different tensorflow versions (t
 from typing import Tuple, List, Iterable, Optional
 
 from .midi_processor import MidiProcessor
-from .registry import register_param, register_links, PathLike
+from .registry import register_param, register_links, PathLike, ConfDict
 
 import os
 import csv
@@ -91,8 +91,7 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
 @register_param('num_threads', int, 'Number of sequence generator processes to spawn')
 @register_links({'MidiProcessor'})
 class PerformanceInputLoader:
-
-    def __init__(self, **config):
+    def __init__(self, config: ConfDict):
         dataset_dir = config.get('dataset_dir')
         dataset_csv = os.path.join(dataset_dir, config.get('dataset_csv'))
         check_dataset(dataset_dir, dataset_csv)
@@ -101,7 +100,9 @@ class PerformanceInputLoader:
 
         window_size = config['sequence_length'] + 1
 
-        self.midi_processor = MidiProcessor(**config)
+        # TODO: write static method to calculate the vocab size
+        #       without instantiating a MidiProcessor (is used for nothing else here)
+        self.midi_processor = MidiProcessor(config)
         self.vocab_size = self.midi_processor.vocab_size
 
         self.dataset = (
@@ -165,10 +166,13 @@ class PerformanceInputLoader:
             self.base_data_path = base_data_path
             self.augmentation = augmentation
             self.buffer = buffer
-            self.midi_processor = MidiProcessor(
-                    time_granularity=time_granularity,
-                    piece_start=piece_start,
-                    piece_end=piece_end)
+
+            # We don't supply the config dict normally here 
+            # since we are running in a different process
+            self.midi_processor = MidiProcessor({
+                    'time_granularity':time_granularity,
+                    'piece_start':piece_start,
+                    'piece_end':piece_end})
 
         def run(self):
             for path in self.path_list:

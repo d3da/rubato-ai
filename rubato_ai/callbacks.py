@@ -4,7 +4,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from .registry import register_param, register_links, PathLike
+from .registry import register_param, register_links, PathLike, ConfDict
 from .midi_processor import MidiProcessor
 
 from typing import Generator
@@ -44,7 +44,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         and moved to a different file.
 
     """
-    def __init__(self, **config):
+    def __init__(self, config: ConfDict):
         super().__init__()
 
         self._train_dir = config['train_dir']
@@ -61,7 +61,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._writer = None  # Defer instantiating writer and sample subdirectories before training
         self._sample_subdir = None  # to avoid making empty subdirectories when not training
 
-        self._midi_processor = MidiProcessor(**config)
+        self._midi_processor = MidiProcessor(config)
 
     def on_train_begin(self, logs=None):
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)

@@ -10,7 +10,7 @@ from .optimizer import Optimizer
 from .callbacks import TrainCallback
 from .input_loader import PerformanceInputLoader
 
-from .registry import register_param, register_links, PathLike
+from .registry import register_param, register_links, PathLike, ConfDict
 
 
 @register_param('train_dir', PathLike,
@@ -35,7 +35,7 @@ class BaseModel(tf.keras.Model):
                  model_name: str,
                  input_loader: PerformanceInputLoader,
                  restore_checkpoint: bool,
-                 **config):
+                 config: ConfDict):
         super().__init__(name=model_name)
         self.input_loader = input_loader
         self.train_dir = config['train_dir']
@@ -43,7 +43,7 @@ class BaseModel(tf.keras.Model):
         self._batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self._epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
 
-        self.optimizer = Optimizer.create(step_counter=self._batch_ctr, **config)
+        self.optimizer = Optimizer.create(step_counter=self._batch_ctr, config=config)
 
         self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
                                                       label_smoothing=config['label_smoothing'])
@@ -64,7 +64,7 @@ class BaseModel(tf.keras.Model):
             else:
                 print('Initialized model (we\'re at batch zero)')
 
-        self.callbacks = [TrainCallback(**config)]
+        self.callbacks = [TrainCallback(config)]
         self.load_time = time.localtime()
 
     @property

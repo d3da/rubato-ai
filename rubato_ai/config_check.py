@@ -1,6 +1,6 @@
 from . import registry
 
-from typing import Optional, List, Any
+from typing import Optional, List, Dict, Any
 from typing_inspect import is_union_type
 
 import sys
@@ -36,7 +36,7 @@ class LinkParamWrongValueError(LinkParamException):
         super().__init__(f'Configuration parameter has wrong value. (got {value})', link_param)
 
 
-def check_unused_params(**config):
+def check_unused_params(config: registry.ConfDict):
     """
     Warn the user about config parameters in the config dictionary that
     are not registered anywhere in the imported modules.
@@ -56,15 +56,15 @@ def check_unused_params(**config):
                 print(f'Warning: Parameter \'{param_name}\' is unknown', file=sys.stderr)
 
 
-def _check_param(param: registry.ConfParam, **config):
+def _check_param(param: registry.ConfParam, config: registry.ConfDict):
     if param.name not in config:
         raise ConfParamUnsetError(param)
 
     # Comment out this function call if the type checking causes problems
-    _check_param_type(param, **config)
+    _check_param_type(param, config)
 
 
-def _check_param_type(param: registry.ConfParam, **config):
+def _check_param_type(param: registry.ConfParam, config: registry.ConfDict):
     """
     Check whether a config parameter has the type defined in @register_param at runtime.
     This check currently uses an import (typing_inspect) and may cause problems with
@@ -88,8 +88,8 @@ def _check_param_type(param: registry.ConfParam, **config):
 
 
 def _check_link_param(link_param: registry.LinkParam,
-                        _visited_clases: List[str],
-                        **config) -> int:
+                      config: registry.ConfDict,
+                      _visited_clases: List[str]) -> int:
     if link_param.choice_param not in config:
         raise LinkParamUnsetError(link_param)
 
@@ -97,12 +97,12 @@ def _check_link_param(link_param: registry.LinkParam,
     if choice not in link_param.choice_options:
         raise LinkParamWrongValueError(link_param, choice)
     
-    return check_config(link_param.choice_options[choice], _visited_clases, **config)
+    return check_config(link_param.choice_options[choice], config, _visited_clases)
 
 
 def check_config(check_class: str,
-                 _visited_classes: Optional[List[str]] = None,
-                 **config) -> int:
+                 config: registry.ConfDict,
+                 _visited_classes: Optional[List[str]] = None) -> int:
     """
     Recursively validate a configuration dict against the registry of parameters.
     (it ensures parameters are defined and have the right type)
@@ -135,7 +135,7 @@ def check_config(check_class: str,
     if check_class in registry.REG_CONF_PARAMS_BY_CLASS_NAME:
         for param in registry.REG_CONF_PARAMS_BY_CLASS_NAME[check_class]:
             try:
-                _check_param(param, **config)
+                _check_param(param, config)
             except ConfParamException as e:
                 num_errors += 1
                 print(e, file=sys.stderr)
@@ -144,7 +144,7 @@ def check_config(check_class: str,
     if check_class in registry.REG_LINK_PARAMS:
         for link_param in registry.REG_LINK_PARAMS[check_class]:
             try:
-                num_errors += _check_link_param(link_param, _visited_classes, **config)
+                num_errors += _check_link_param(link_param, config, _visited_classes)
             except LinkParamException as e:
                 num_errors += 1
                 print(e, file=sys.stderr)
@@ -152,11 +152,11 @@ def check_config(check_class: str,
     # Check classes directly linked to
     if check_class in registry.REG_CLASS_LINKS:
         for created_class in registry.REG_CLASS_LINKS[check_class]:
-            num_errors += check_config(created_class, _visited_classes, **config)
+            num_errors += check_config(created_class, config, _visited_classes)
 
     return num_errors
 
-def validate_config(check_class: str, **conf):
+def validate_config(check_class: str, config: registry.ConfDict):
     """
     Run :meth:`check_config` but raise an exception at the end if errors were encountered,
     and warn about unused parameters beforehand (see :meth:`check_unused_params`)
@@ -164,7 +164,7 @@ def validate_config(check_class: str, **conf):
     :param check_class: Name of class to start validation at
     :param conf: Configuration dictionary
     """
-    check_unused_params(**conf)
-    num_errors = check_config(check_class, **conf)
+    check_unused_params(config)
+    num_errors = check_config(check_class, config)
     if num_errors > 0:
         raise ConfigException(f'Found {num_errors} errors in configuration')

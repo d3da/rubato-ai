@@ -39,11 +39,11 @@ config_dict = getattr(config, args.config)  # raises AttributeError on failure
 assert isinstance(config_dict, dict), 'Configuration object supplied with --config must be a dict'
 
 if args.action == 'train':
-    rubato = RubatoAI(args.model_name, args.restore_checkpoint, **config_dict)
+    rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict)
     exit(rubato.train(epochs=10))
 
 elif args.action == 'check':
-    exit(validate_config('RubatoAI', **config_dict))
+    exit(validate_config('RubatoAI', config=config_dict))
 
 elif args.action == 'sample':
     raise NotImplementedError('No support for sampling without training yet... #TODO')

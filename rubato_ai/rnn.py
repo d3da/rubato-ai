@@ -7,8 +7,9 @@ import time
 
 import tensorflow as tf
 
+from .input_loader import PerformanceInputLoader
 from .base_model import BaseModel
-from .registry import register_param, register_links
+from .registry import register_param, register_links, ConfDict
 
 
 @register_param('rnn_units', int, 'Hidden dimension of the RNN')
@@ -40,11 +41,11 @@ class RnnModel(BaseModel):
         it doesn't work with ``config['mixed_precision']``
     """
     def __init__(self,
-                 model_name,
-                 input_loader,
-                 restore_checkpoint,
-                 **config):
-        super().__init__(model_name, input_loader, restore_checkpoint, **config)
+                 model_name: str,
+                 input_loader: PerformanceInputLoader,
+                 restore_checkpoint: bool,
+                 config: ConfDict):
+        super().__init__(model_name, input_loader, restore_checkpoint, config)
         self._vocab_size = self.input_loader.vocab_size
         self._rnn_units = config['rnn_units']
         self._drop_rate = config['drop_rate']
