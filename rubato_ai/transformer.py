@@ -96,6 +96,11 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return self.O(x, training=training)  # (B, T, d_model)
 
     def attention_scaled_dot_product(self, q, k):
+        """
+        Calculate scaled dot-product attention scores without applying softmax.
+
+        This function can be overridden by subclasses (see :meth:`RelativeGlobalAttention.attention_scaled_dot_product`)
+        """
         # We scale the score before the multiplication by K.transpose because
         #   the element-wise mult is faster with fewer elements
         # So scaling here is faster when seq_len > d_k
@@ -112,9 +117,9 @@ class RelativeGlobalAttention(MultiHeadAttention):
     Huang et al. (2018)
 
     A variation of regular MultiHeadAttention, where information about distance
-        between queries and keys is added to the dot-product attention.
+    between queries and keys is added to the dot-product attention.
 
-    Distances further than max_relative_pos are clipped
+    Distances further than max_relative_pos are clipped.
     """
     def __init__(self, **config):
         super().__init__(**config)
@@ -228,7 +233,7 @@ class PositionalEncoding(tf.keras.layers.Layer):
     """
     Learned token embeddings are added to learned positional embeddings.
 
-    from https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder
+    From `<https://www.tensorflow.org/text/tutorials/transformer#encoder_and_decoder>`_
 
     TODO learned/linear embeddings with hparams
     """

@@ -117,14 +117,18 @@ class PerformanceModel(tf.keras.Model):
 class TrainCallback(tf.keras.callbacks.Callback):
     """
     Custom callback that provides "improvements" over the default
-        tf.keras.callbacks.TensorBoard in addition to handling
-        checkpoint saving and sample generation.
+    tf.keras.callbacks.TensorBoard in addition to handling
+    checkpoint saving and sample generation.
+
 
     This callback keeps track of a global step (batch) counter
-        that persists between checkpoint saves/loads, allowing
-        tensorboard graphs to span multiple runs.
+    that persists between checkpoint saves/loads, allowing
+    tensorboard graphs to span multiple runs.
+
 
     TODO this class has become bloated and should be split up into multiple Callbacks
+    and moved to a different file.
+
     """
     def __init__(self, **config):
         super().__init__()

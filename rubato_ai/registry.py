@@ -52,12 +52,12 @@ class ConfParam:
 
     def __str__(self):
         used_by = ', '.join(f':class:`{p.class_name}`' for p in REG_CONF_PARAMS_BY_NAME[self.name])
-        return (f'=========== ==================\n'
-                f'Name        ``{self.name}``\n'
-                f'Used by     {used_by}\n'
-                f'Type        ``{self.conf_type}``\n'
-                f'Description {self.description}\n'
-                f'=========== ==================\n')
+        return (f'    =========== ==================\n'
+                f'    Name        ``{self.name}``\n'
+                f'    Used by     {used_by}\n'
+                f'    Type        ``{self.conf_type}``\n'
+                f'    Description {self.description}\n'
+                f'    =========== ==================\n')
 
 
 class LinkParam():
@@ -72,13 +72,13 @@ class LinkParam():
         self.description = description
 
     def __str__(self):
-        choices = '\n\n            '.join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
-        return (f'=========== ==================\n'
-                f'Name        ``{self.choice_param}``\n'
-                f'Type        Link Parameter\n'
-                f'Choices     {choices}\n'
-                f'Description {self.description}\n'
-                f'=========== ==================\n')
+        choices = '\n\n                '.join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
+        return (f'    =========== ==================\n'
+                f'    Name        ``{self.choice_param}``\n'
+                f'    Type        Link Parameter\n'
+                f'    Choices     {choices}\n'
+                f'    Description {self.description}\n'
+                f'    =========== ==================\n')
 
 
 def register_param(name: str,
@@ -199,7 +199,7 @@ def _add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
     if cls.__doc__ is None:
         print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
         return
-    cls.__doc__ += f'\n\n| Configuration parameter used:\n\n{param}\n'
+    cls.__doc__ += f'\n\n    | Configuration parameter used:\n\n{param}\n'
 
 def _add_link_docstring(cls, targets: Set[str]):
     """
@@ -209,4 +209,4 @@ def _add_link_docstring(cls, targets: Set[str]):
         print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
         return
     link_fmt = ', '.join([f':class:`{link}`' for link in targets])
-    cls.__doc__ += f'\n\n| Class links to: {link_fmt}\n\n'
+    cls.__doc__ += f'\n\n    | Class links to: {link_fmt}\n\n'
