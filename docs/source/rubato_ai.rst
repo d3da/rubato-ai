@@ -20,6 +20,14 @@ rubato\_ai.base\_model module
    :no-undoc-members:
    :show-inheritance:
 
+rubato\_ai.callbacks module
+---------------------------
+
+.. automodule:: rubato_ai.callbacks
+   :members:
+   :no-undoc-members:
+   :show-inheritance:
+
 rubato\_ai.config module
 ------------------------
 
