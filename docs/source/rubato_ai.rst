@@ -1,6 +1,11 @@
 rubato\_ai package
 ==================
 
+.. automodule:: rubato_ai
+   :members:
+   :no-undoc-members:
+   :show-inheritance:
+
 Submodules
 ----------
 
@@ -96,14 +101,6 @@ rubato\_ai.transformer module
 -----------------------------
 
 .. automodule:: rubato_ai.transformer
-   :members:
-   :no-undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: rubato_ai
    :members:
    :no-undoc-members:
    :show-inheritance:

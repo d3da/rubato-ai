@@ -5,7 +5,7 @@
 cd $( dirname "$0" )
 
 export SPHINX_APIDOC_OPTIONS=members,no-undoc-members,show-inheritance
-sphinx-apidoc -f -o docs/source/ rubato_ai/
+sphinx-apidoc --force --module-first --output-dir docs/source/ rubato_ai/
 
 cd docs/
 make clean; make html
