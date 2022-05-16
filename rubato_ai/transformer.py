@@ -213,6 +213,9 @@ class TransformerBlock(tf.keras.layers.Layer):
         self.dropout2 = tf.keras.layers.Dropout(config['drop_rate'])
 
     def call(self, inputs, training=False):
+        """
+        .. todo:: document this
+        """
         input_shape = tf.shape(inputs)
         batch_size = input_shape[0]
         seq_len = input_shape[1]
@@ -250,6 +253,9 @@ class PositionalEncoding(tf.keras.layers.Layer):
         self.pos_enc = self.positional_encoding(max_seq_len, embed_dim)
 
     def call(self, x, training=False):
+        """
+        .. todo:: document this
+        """
         return self.pos_enc[:, :x.shape[1], :x.shape[2]]
 
     @staticmethod
@@ -282,6 +288,9 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
         self.emb_matrix = self.add_weight(name='shared_embedding', shape=(token_dim, model_dim), trainable=True)
 
     def call(self, inputs, encode=True, training=None):
+        """
+        .. todo:: document this
+        """
         if encode:
             # inputs: (batch, sequence, token_dim)
             return tf.einsum('bst,tm->bsm', inputs, self.emb_matrix)
@@ -308,8 +317,8 @@ class TransformerModel(BaseModel):
     Consists of an input embedder, positional encodings, transformer layers and output embedding.
 
     The input layer takes in a sequence and converts it into
-        one-hot encoding before running it through the model,
-        so you don't have to do that in some other place.
+    one-hot encoding before running it through the model,
+    so you don't have to do that in some other place.
     The model outputs logits (the final softmax is omitted).
 
     The input and output embeddings use the same weights but transposed.
@@ -344,6 +353,10 @@ class TransformerModel(BaseModel):
         # Softmax is omitted, model returns logits
 
     def call(self, inputs, training=False):
+        """
+        .. todo::
+            document this
+        """
         # inputs: (batch, seq_len)
         x = tf.one_hot(inputs, self._vocab_size)
         # x: (batch, seq_len, vocab_size)

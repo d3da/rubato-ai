@@ -64,6 +64,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._midi_processor = MidiProcessor(config)
 
     def on_train_begin(self, logs=None):
+        """"""
         run_time = time.strftime('%Y.%m.%d-%H:%M:%S', self.model.load_time)
         log_dir = str(os.path.join('logs', self.model.name, run_time))
         self._writer = tf.summary.create_file_writer(log_dir)
@@ -76,13 +77,16 @@ class TrainCallback(tf.keras.callbacks.Callback):
             os.mkdir(self._sample_subdir)
 
     def on_train_end(self, logs=None):
+        """"""
         assert self._writer is not None
         self._writer.close()
 
     def on_batch_begin(self, batch, logs=None):
+        """"""
         self._batch_start_time = time.time()
 
     def on_batch_end(self, batch, logs=None):
+        """"""
         _batch_time = time.time() - self._batch_start_time
         step = self.model.batch_count
 
@@ -120,6 +124,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self.model.increment_batch()
 
     def on_epoch_end(self, epoch, logs=None):
+        """"""
         tot_epoch = self.model.increment_epoch()
 
         print(f'\nTotal steps: {self.model.batch_count}')
