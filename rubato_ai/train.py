@@ -1,6 +1,6 @@
 from .base_model import BaseModel
 from .transformer import TransformerModel
-from .performance_rnn import PerformanceRNNModel
+from .rnn import RnnModel
 from .input_loader import PerformanceInputLoader
 from .registry import register_param, register_link_param, register_links
 from .config_check import validate_config
@@ -11,7 +11,7 @@ import tensorflow as tf
 
 @register_link_param('model_type', {
     'transformer': 'TransformerModel',
-    'rnn' : 'PerformanceRNNModel',
+    'rnn' : 'RnnModel',
 })
 @register_param('batch_size', int, 'Batch size to use during training')
 @register_param('sequence_length', int, '(Maximum) input sequence length')
@@ -54,7 +54,7 @@ class ModelTrainer:
         if config['model_type'] == 'transformer':
             return TransformerModel(model_name, input_loader, restore_checkpoint, **config)
         if config['model_type'] == 'rnn':
-            return PerformanceRNNModel(model_name, input_loader, restore_checkpoint, **config)
+            return RnnModel(model_name, input_loader, restore_checkpoint, **config)
         raise ValueError
 
     def train(self, epochs: int):

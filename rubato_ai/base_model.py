@@ -22,7 +22,7 @@ from .registry import register_param, register_links, PathLike
 @register_links({'Optimizer', 'TrainCallback'})
 class BaseModel(tf.keras.Model):
     """
-    Base class inherited by TransformerModel and PerformanceRNNModel.
+    Base class inherited by TransformerModel and RnnModel.
     This class can be considered abstract and is not instantiated directly.
 
     This class handles the following:
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     exit()
 
     # # Simon & Oore (2018)
-    # inner_model = PerformanceRNNModel(
+    # inner_model = RnnModel(
     #     vocab_size=input_loader.vocab_size,
     #     rnn_units=512,
     #     dropout=0.0

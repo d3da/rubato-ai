@@ -68,18 +68,18 @@ rubato\_ai.optimizer module
    :no-undoc-members:
    :show-inheritance:
 
-rubato\_ai.performance\_rnn module
-----------------------------------
-
-.. automodule:: rubato_ai.performance_rnn
-   :members:
-   :no-undoc-members:
-   :show-inheritance:
-
 rubato\_ai.registry module
 --------------------------
 
 .. automodule:: rubato_ai.registry
+   :members:
+   :no-undoc-members:
+   :show-inheritance:
+
+rubato\_ai.rnn module
+---------------------
+
+.. automodule:: rubato_ai.rnn
    :members:
    :no-undoc-members:
    :show-inheritance:

@@ -15,7 +15,7 @@ from .registry import register_param, register_links
 @register_param('drop_rate', float,
                 'Dropout rate to apply to RNN layers')
 @register_links({'BaseModel'})
-class PerformanceRNNModel(BaseModel):
+class RnnModel(BaseModel):
     """
     seq_length: 512a
     lstm_h_dim: 512b
