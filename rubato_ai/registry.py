@@ -7,7 +7,15 @@ in the code not far from the actual usage of the parameter,
 and see which classes use which parameters.
 
 In addition, we define the type that the setting of a config parameter should have,
-as well as a description.
+as well as a description (see :meth:`register_param`).
+
+Not only can we register which classes access which config parameter,
+we can also register that classes initialize other classes that access config parameters.
+These links are registered using :meth:`register_links`.
+
+Some classes may define links that in which one of multiple target classes
+is linked to, depending on the value of a configuration parameter.
+These are called link parameters, and are registered with :meth:`register_link_param`
 
 Since the decorators run at import time, we populate the register as
 soon as the relevant classes are imported.
@@ -15,8 +23,9 @@ This allows to change the docstrings of those classes at import time,
 documenting which parameters are used just by registering them.
 This may save some effort when writing that pesky documentation.
 
-[[ config_check ]]
-[[ links and link parameters ]]
+.. seealso::
+    Module :py:mod:`.config_check`
+        Validate a configuration dict based on the registry
 """
 import os
 import sys
@@ -97,6 +106,9 @@ def register_param(name: str,
             class MultiHeadAttention(...):
                 ...
 
+    After adding the parameter to the registry, an overview of the parameter
+    is appended to the class docstring, formatted in reStructuredText.
+
     TODO handle two classes using same parameter (check the type or sth)
     """
 
@@ -144,6 +156,11 @@ def register_link_param(choice_param: str,
             )
             class TransformerBlock(...):
                 ...
+
+    After adding the link parameter to the registry, an overview of the link parameter
+    is appended to the class docstring, formatted in reStructuredText.
+
+    For unconditional links, see :meth:`register_links`
     """
     def _wrap_class(cls):
         class_name = cls.__name__
@@ -166,6 +183,12 @@ def register_links(created_classes: Set[str]):
     parameters of the target class should be checked whenever the parameters
     of the source class are checked.
 
+    The two cases for this are when a class initializes another class
+    (such as a ``keras.Layer`` creating sublayers), and a class inheriting from a superclass
+    (where the superclass accesses its own config parameters or defines its own config links).
+
+    You should use the decorator ``@register_links`` at most once per class.
+
     Example:
         Because :class:`RelativeGlobalAttention` inherits from :class:`MultiHeadAttention`,
         a link is registered from ``'RelativeGlobalAttention'`` to ``'MultiHeadAttention'``,
@@ -174,6 +197,9 @@ def register_links(created_classes: Set[str]):
             @register_links({'MultiHeadAttention'})
             class RelativeGlobalAttention(MultiHeadAttention):
                 ...
+
+    After adding the links to the registry, a description of the link is appended to the class docstring.
+    This link description is formatted with reStructuredText.
 
     For optional links, see :meth:`register_link_param`.
     """

@@ -11,7 +11,7 @@ import tensorflow as tf
 })
 @register_links({'AdamOptimizer'})
 class Optimizer:
-    """Class to build an Adam optimizer using config parameters."""
+    """Class to build an Adam optimizer from config parameters."""
 
     @staticmethod
     def create(step_counter: Optional[tf.Variable], **config) -> 'AdamOptimizer':
@@ -19,7 +19,7 @@ class Optimizer:
         Build an adam optimizer instance given the configuration.
 
         Needs a reference to the model's step counter to calculate the learning rate,
-            when using the 'noam' schedule.
+        when using the 'noam' schedule.
         """
         learning_rate = Optimizer._learning_rate_schedule_from_config(step_counter, **config)
         return AdamOptimizer(learning_rate, **config)

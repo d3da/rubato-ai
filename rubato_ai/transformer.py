@@ -80,6 +80,16 @@ class MultiHeadAttention(tf.keras.layers.Layer):
             'bthv,dhv->btd', output_shape=[self._max_seq_len, self._embed_dim])
 
     def call(self, inputs, mask, training=False):
+        """
+        Calculate multi head attention
+
+        :param inputs: Input tensor, shape: (batch_size, sequence_length, d_model)
+        :param mask: "Boolean" mask tensor (can be tf.int32) for masking the softmax calculation,
+                     shape: (batch_size, sequence_length, sequence_length)
+        :param training: Set to ``true`` during training.
+
+        :return: Output tensor, shape: (batch_size, sequence_length, d_model)
+        """
         # inputs: (B, S, d_model)
         q = self.Q(inputs, training=training)  # (B, T, h, d_k)
         k = self.K(inputs, training=training)  # (B, S, h, d_k)
@@ -96,11 +106,6 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return self.O(x, training=training)  # (B, T, d_model)
 
     def attention_scaled_dot_product(self, q, k):
-        """
-        Calculate scaled dot-product attention scores without applying softmax.
-
-        This function can be overridden by subclasses (see :meth:`RelativeGlobalAttention.attention_scaled_dot_product`)
-        """
         # We scale the score before the multiplication by K.transpose because
         #   the element-wise mult is faster with fewer elements
         # So scaling here is faster when seq_len > d_k
@@ -116,10 +121,8 @@ class RelativeGlobalAttention(MultiHeadAttention):
     """
     Huang et al. (2018)
 
-    A variation of regular MultiHeadAttention, where information about distance
+    A variation of :class:`MultiHeadAttention`, where information about distance
     between queries and keys is added to the dot-product attention.
-
-    Distances further than max_relative_pos are clipped.
     """
     def __init__(self, **config):
         super().__init__(**config)
@@ -149,9 +152,6 @@ class RelativeGlobalAttention(MultiHeadAttention):
         return attn_score
 
     def clipped_relative_positions(self, seq_len):
-        """
-        Calculate Er, clipping at a max distance of self._max_relative_pos
-        """
         length_diff = seq_len - self._max_relative_pos
 
         # If the supplied sequence is larger than the relative position matrix (self.pos_emb),

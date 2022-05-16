@@ -1,7 +1,7 @@
 """
 https://arxiv.org/abs/1808.03715v1
 """
-from typing import List, Iterable, Optional
+from typing import List, Iterable
 
 from .registry import register_param
 
@@ -166,7 +166,7 @@ class MidiProcessor:
         event = Event(index, event_type, event_value)
         self._events.append(event)
 
-    def _event_index(self, event_type: str, event_value: int) -> int:
+    def _event_index(self, event_type: str, event_value: int = -1) -> int:
         idx = 0
         if event_type == 'NOTE_ON':
             return event_value
@@ -308,12 +308,13 @@ class Event:
 def test_conversions(path: str, midi_processor: MidiProcessor):
     """
     Test to check if converting an event list to midi and back to event list
-    changes the event list.
+    changes the event list. (It does, this test pretty much always fails...)
 
-    FIXME: time_shift events are not translated well, especially where there
+    .. warning::
+        time_shift events are not translated well, especially where there
         are many consecutive control_change messages in the input.
         This most likely comes from the rounding of time values
-        in MidiProcessor._handle_time_shift().
+        in :meth:`MidiProcessor._handle_time_shift`.
     """
     midi_before = mido.MidiFile(path)
     events_before = midi_processor.parse_midi(midi_before)
