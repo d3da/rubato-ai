@@ -9,11 +9,14 @@ import mido
 
 
 @register_param('time_granularity', int,
-                'Number of midi processor <TIME_SHIFT> events per second')
+                'Number of midi processor <TIME_SHIFT> events per second',
+                breaks_compatibility=True)
 @register_param('piece_start', bool,
-                'Whether to prepend <START> events to sequences')
+                'Whether to prepend <START> events to sequences',
+                breaks_compatibility=True)
 @register_param('piece_end', bool,
-                'Whether to append <END> events to sequences')
+                'Whether to append <END> events to sequences',
+                breaks_compatibility=True)
 class MidiProcessor:
     """Class for generating tokens from a midi file and turning tokens back into a midi file.
 

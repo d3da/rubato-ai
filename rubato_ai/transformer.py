@@ -31,13 +31,17 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
 
 
 @register_param('attn_heads', int,
-                'Number of attention heads')
+                'Number of attention heads',
+                breaks_compatibility=True)
 @register_param('embed_dim', int,
-                'Dimension of output and \'value\' projection')
+                'Dimension of output and \'value\' projection',
+                breaks_compatibility=True)
 @register_param('attn_dim', Optional[int],
-                'Dimension of \'key\' projection. Set to None to use embed_dim')
+                'Dimension of \'key\' projection. Set to None to use embed_dim',
+                breaks_compatibility=True)
 @register_param('sequence_length', int,
-                'Maximum input sequence length')
+                'Maximum input sequence length',
+                breaks_compatibility=True)
 class MultiHeadAttention(tf.keras.layers.Layer):
     """
     Masked MultiHeadAttention as described in Vaswani et al. (2017)
@@ -115,7 +119,8 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
 
 @register_param('max_relative_pos', int,
-                'Clipping distance of relative positional encodings')
+                'Clipping distance of relative positional encodings',
+                breaks_compatibility=True)
 @register_links({'MultiHeadAttention'})
 class RelativeGlobalAttention(MultiHeadAttention):
     """
@@ -178,9 +183,11 @@ class RelativeGlobalAttention(MultiHeadAttention):
     'relative': 'RelativeGlobalAttention'
 })
 @register_param('ff_dim', int,
-                'Output dimension of the first dense sublayer')
+                'Output dimension of the first dense sublayer',
+                breaks_compatibility=True)
 @register_param('embed_dim', int,
-                'Dimension of output and \'value\' projection')
+                'Dimension of output and \'value\' projection',
+                breaks_compatibility=True)
 @register_param('layernorm_eps', float,
                 'Epsilon value used in LayerNorm sublayer')
 @register_param('drop_rate', float,
@@ -284,13 +291,16 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
 
 
 @register_param('sequence_length', int,
-                'Maximum input sequence length')
+                'Maximum input sequence length',
+                breaks_compatibility=True)
 @register_param('embed_dim', int,
-                'Hidden dimension size')
+                'Hidden dimension size',
+                breaks_compatibility=True)
 @register_param('drop_rate', float,
                 'Dropout rate to use after input layer and in TransformerBlock')
 @register_param('num_layers', int,
-                'Number of stacked TransformerBlock layers to use')
+                'Number of stacked TransformerBlock layers to use',
+                breaks_compatibility=True)
 @register_links({'BaseModel', 'TransformerBlock'})
 class TransformerModel(BaseModel):
     """

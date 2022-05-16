@@ -26,6 +26,11 @@ This may save some effort when writing that pesky documentation.
 .. seealso::
     Module :py:mod:`.config_check`
         Validate a configuration dict based on the registry
+
+.. todo::
+    - Document breaks_compatibility
+    - Determine most useful defaults for breaks_compatibility
+    - Rename those ugly global variables
 """
 import os
 import sys
@@ -48,25 +53,32 @@ REG_CLASS_LINKS: Dict[str, Set[str]] = {}
 # Link parameters accesses by class name
 REG_LINK_PARAMS: Dict[str, Set['LinkParam']] = {}
 
+# Config parameters that break checkpoint compatibility with a change in value
+REG_CKPT_INCOMPATIBLE_PARAMS: Set[str] = set()
+
 
 class ConfParam:
     def __init__(self,
                  class_name: str,
                  name: str,
                  conf_type: Type,
-                 description: str):
+                 description: str,
+                 breaks_compatibility: bool):
         self.class_name = class_name
         self.name = name
         self.conf_type = conf_type
         self.description = description
+        self.breaks_compatibility = breaks_compatibility
 
     def __str__(self):
         used_by = ', '.join(f':class:`{p.class_name}`' for p in REG_CONF_PARAMS_BY_NAME[self.name])
+        compat = ('Breaks' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
                 f'    Name        ``{self.name}``\n'
                 f'    Used by     {used_by}\n'
                 f'    Type        ``{self.conf_type}``\n'
                 f'    Description {self.description}\n'
+                f'    Compatible  {compat} checkpoint compatibility\n'
                 f'    =========== ==================\n')
 
 
@@ -75,25 +87,30 @@ class LinkParam():
                  from_class: str,
                  choice_param: str,
                  choice_options: Dict[str, str],
-                 description: str):
+                 description: str,
+                 breaks_compatibility: bool):
         self.from_class = from_class
         self.choice_param = choice_param
         self.choice_options = choice_options
         self.description = description
+        self.breaks_compatibility = breaks_compatibility
 
     def __str__(self):
         choices = '\n\n                '.join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
+        compat = ('Breaks' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
                 f'    Name        ``{self.choice_param}``\n'
                 f'    Type        Link Parameter\n'
                 f'    Choices     {choices}\n'
                 f'    Description {self.description}\n'
+                f'    Compatible  {compat} checkpoint compatibility\n'
                 f'    =========== ==================\n')
 
 
 def register_param(name: str,
                    conf_type: Type,
-                   description: str = 'No description provided'):
+                   description: str = 'No description provided',
+                   breaks_compatibility: bool = False):
     """
     Register a hyperparameter to the parameter registry.
     Use as class decorator to define the config parameters used by that class.
@@ -119,7 +136,7 @@ def register_param(name: str,
         # print(f'{class_name}: Registering config parameter \'{name}\'')
         # print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
 
-        param = ConfParam(class_name, name, conf_type, description)
+        param = ConfParam(class_name, name, conf_type, description, breaks_compatibility)
         # TODO check if param already exists
         if name not in REG_CONF_PARAMS_BY_NAME:
             REG_CONF_PARAMS_BY_NAME[name] = set()
@@ -128,6 +145,9 @@ def register_param(name: str,
         if class_name not in REG_CONF_PARAMS_BY_CLASS_NAME:
             REG_CONF_PARAMS_BY_CLASS_NAME[class_name] = set()
         REG_CONF_PARAMS_BY_CLASS_NAME[class_name].add(param)
+
+        if breaks_compatibility:
+            REG_CKPT_INCOMPATIBLE_PARAMS.add(name)
 
         _add_param_docstring(cls, param)
 
@@ -138,7 +158,8 @@ def register_param(name: str,
 
 def register_link_param(choice_param: str,
                         choice_options: Dict[str, str],
-                        description: str = 'No description provided'):
+                        description: str = 'No description provided',
+                        breaks_compatibility: bool = True):
     """
     A link parameter links from a source class to a target class in which
     the target class depends on the value of a config parameter.
@@ -167,11 +188,14 @@ def register_link_param(choice_param: str,
     def _wrap_class(cls):
         class_name = cls.__name__
 
-        link_param = LinkParam(class_name, choice_param, choice_options, description)
+        link_param = LinkParam(class_name, choice_param, choice_options, description, breaks_compatibility)
 
         if class_name not in REG_LINK_PARAMS:
             REG_LINK_PARAMS[class_name] = set()
         REG_LINK_PARAMS[class_name].add(link_param)
+
+        if breaks_compatibility:
+            REG_CKPT_INCOMPATIBLE_PARAMS.add(choice_param)
 
         _add_param_docstring(cls, link_param)
 

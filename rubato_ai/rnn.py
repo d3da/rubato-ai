@@ -12,7 +12,7 @@ from .base_model import BaseModel
 from .registry import register_param, register_links, ConfDict
 
 
-@register_param('rnn_units', int, 'Hidden dimension of the RNN')
+@register_param('rnn_units', int, 'Hidden dimension of the RNN', breaks_compatibility=True)
 @register_param('drop_rate', float,
                 'Dropout rate to apply to RNN layers')
 @register_links({'BaseModel'})

@@ -13,7 +13,9 @@ import tensorflow as tf
 })
 @register_param('batch_size', int, 'Batch size to use during training')
 @register_param('sequence_length', int, '(Maximum) input sequence length')
-@register_param('mixed_precision', bool, 'Enable mixed_float16 precision in session')
+@register_param('mixed_precision', bool,
+                'Enable mixed_float16 precision in session',
+                breaks_compatibility=True)
 @register_links({'PerformanceInputLoader'})
 class RubatoAI:
     """
