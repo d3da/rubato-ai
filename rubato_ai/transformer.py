@@ -8,7 +8,7 @@ import tensorflow as tf
 
 from typing import Optional
 
-from .base_model import PerformanceModel
+from .base_model import BaseModel
 
 from .registry import register_param, register_links, register_link_param
 
@@ -291,8 +291,8 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
                 'Dropout rate to use after input layer and in TransformerBlock')
 @register_param('num_layers', int,
                 'Number of stacked TransformerBlock layers to use')
-@register_links({'PerformanceModel', 'TransformerBlock'})
-class TransformerModel(PerformanceModel):
+@register_links({'BaseModel', 'TransformerBlock'})
+class TransformerModel(BaseModel):
     """
     Transformer decoder model based on Vaswani et al. 2017.
     Consists of an input embedder, positional encodings, transformer layers and output embedding.

@@ -6,13 +6,13 @@ import os
 
 import tensorflow as tf
 
-from .base_model import PerformanceModel
+from .base_model import BaseModel
 from .config import default_conf, PROJECT_DIR
 from .midi_processor import MidiProcessor
 from .train import ModelTrainer
 
 
-def load_averaged_weights(model: PerformanceModel, last_n=20) -> None:
+def load_averaged_weights(model: BaseModel, last_n=20) -> None:
     """
     Loads the last n checkpoint files and load their averaged weights.
 

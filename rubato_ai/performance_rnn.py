@@ -7,15 +7,15 @@ import time
 
 import tensorflow as tf
 
-from .base_model import PerformanceModel
+from .base_model import BaseModel
 from .registry import register_param, register_links
 
 
 @register_param('rnn_units', int, 'Hidden dimension of the RNN')
 @register_param('drop_rate', float,
                 'Dropout rate to apply to RNN layers')
-@register_links({'PerformanceModel'})
-class PerformanceRNNModel(PerformanceModel):
+@register_links({'BaseModel'})
+class PerformanceRNNModel(BaseModel):
     """
     seq_length: 512a
     lstm_h_dim: 512b

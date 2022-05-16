@@ -8,6 +8,7 @@ import tensorflow as tf
 
 from .optimizer import Optimizer
 from .callbacks import TrainCallback
+from .input_loader import PerformanceInputLoader
 
 from .registry import register_param, register_links, PathLike
 
@@ -19,7 +20,7 @@ from .registry import register_param, register_links, PathLike
 @register_param('label_smoothing', float,
                 'Amount of label smoothing regularization to apply to training examples')
 @register_links({'Optimizer', 'TrainCallback'})
-class PerformanceModel(tf.keras.Model):
+class BaseModel(tf.keras.Model):
     """
     Base class inherited by TransformerModel and PerformanceRNNModel.
     This class can be considered abstract and is not instantiated directly.
@@ -31,9 +32,9 @@ class PerformanceModel(tf.keras.Model):
         - Save checkpoints
     """
     def __init__(self,
-                 model_name,
-                 input_loader,
-                 restore_checkpoint,
+                 model_name: str,
+                 input_loader: PerformanceInputLoader,
+                 restore_checkpoint: bool,
                  **config):
         super().__init__(name=model_name)
         self.input_loader = input_loader
@@ -131,7 +132,7 @@ if __name__ == '__main__':
     #     attn_dim=512
     # )
     #
-    # model = PerformanceModel(
+    # model = BaseModel(
     #     inner_model,
     #     input_loader,
     #     'outer_model',  #todo don't allow 2 different model types wiith same name

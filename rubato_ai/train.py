@@ -1,4 +1,4 @@
-from .base_model import PerformanceModel
+from .base_model import BaseModel
 from .transformer import TransformerModel
 from .performance_rnn import PerformanceRNNModel
 from .input_loader import PerformanceInputLoader
@@ -19,11 +19,11 @@ import tensorflow as tf
 @register_links({'PerformanceInputLoader'})
 class ModelTrainer:
     """
-    'Start' class used to instantiate the input loader and a selected subclass of PerformanceModel,
+    'Start' class used to instantiate the input loader and a selected subclass of BaseModel,
     based on the supplied configuration dictionary.
 
     .. todo::
-        think of a better name for this class (or change PerformanceModel.__name__)
+        think of a better name for this class
     .. todo::
         move this to base_model or something?
     """
@@ -50,7 +50,7 @@ class ModelTrainer:
     def _model_from_config(model_name: str,
                            input_loader: PerformanceInputLoader,
                            restore_checkpoint: bool,
-                           **config) -> PerformanceModel:
+                           **config) -> BaseModel:
         if config['model_type'] == 'transformer':
             return TransformerModel(model_name, input_loader, restore_checkpoint, **config)
         if config['model_type'] == 'rnn':
