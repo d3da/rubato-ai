@@ -5,8 +5,6 @@ from .input_loader import PerformanceInputLoader
 from .registry import register_param, register_link_param, register_links
 from .config_check import validate_config
 
-from .config import default_conf
-
 import tensorflow as tf
 
 @register_link_param('model_type', {
@@ -54,11 +52,3 @@ class RubatoAI:
 
     def train(self, epochs: int):
         self.model.train(epochs)
-
-
-def main():
-    trainer = RubatoAI('ModelName', restore_checkpoint=False, **default_conf)
-    trainer.train(10)
-
-if __name__ == '__main__':
-    main()

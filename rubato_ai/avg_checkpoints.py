@@ -1,13 +1,15 @@
 """
 .. todo::
     This class needs proper testing and improvements. I'm not sure it works at all.
+
+.. todo::
+    Add interface to this class to __main__
 """
 import os
 
 import tensorflow as tf
 
 from .base_model import BaseModel
-from .config import default_conf, PROJECT_DIR
 from .midi_processor import MidiProcessor
 from .rubato_ai import RubatoAI
 
@@ -64,7 +66,3 @@ def average_checkpoints(trainer: RubatoAI):
         midi.save(midi_path)
 
     exit()  # Exit so we don't accidently continue training and overwrite a checkpoint
-
-if __name__ == '__main__':
-    p = RubatoAI('foobar', False, **default_conf)
-    average_checkpoints(p)

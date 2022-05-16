@@ -6,4 +6,6 @@ RubatoAI: An implementation of the Music Transformer and Performance RNN.
 """
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))  # So sphinx autodoc finds modules properly
+sys.path.append('..')  # So we can import config.py from the project root

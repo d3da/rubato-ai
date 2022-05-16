@@ -1,4 +1,7 @@
 #!/bin/bash
 
 cd $( dirname "$0" )
-python3 -m rubato_ai --model-name MyModel train
+python3 -m rubato_ai    \
+    --model-name MyModel \
+    --config default_conf \
+    train

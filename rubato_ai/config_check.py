@@ -168,11 +168,3 @@ def validate_config(check_class: str, **conf):
     num_errors = check_config(check_class, **conf)
     if num_errors > 0:
         raise ConfigException(f'Found {num_errors} errors in configuration')
-
-
-if __name__ == '__main__':
-    from .config import default_conf
-    from .rubato_ai import RubatoAI
-    validate_config('RubatoAI', **default_conf)
-    # validate_config('RubatoAI')
-

@@ -33,14 +33,6 @@ rubato\_ai.callbacks module
    :no-undoc-members:
    :show-inheritance:
 
-rubato\_ai.config module
-------------------------
-
-.. automodule:: rubato_ai.config
-   :members:
-   :no-undoc-members:
-   :show-inheritance:
-
 rubato\_ai.config\_check module
 -------------------------------
 
