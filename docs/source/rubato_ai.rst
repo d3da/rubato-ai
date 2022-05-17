@@ -41,6 +41,14 @@ rubato\_ai.config\_check module
    :no-undoc-members:
    :show-inheritance:
 
+rubato\_ai.exceptions module
+----------------------------
+
+.. automodule:: rubato_ai.exceptions
+   :members:
+   :no-undoc-members:
+   :show-inheritance:
+
 rubato\_ai.input\_loader module
 -------------------------------
 
