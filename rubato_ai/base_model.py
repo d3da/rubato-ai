@@ -6,8 +6,8 @@ import tensorflow as tf
 from .optimizer import Optimizer
 from .callbacks import TrainCallback
 from .input_loader import PerformanceInputLoader
-
 from .registry import register_param, register_links, PathLike, ConfDict, REG_CKPT_INCOMPATIBLE_PARAMS
+from .exceptions import CheckpointIncompatibleError
 
 
 @register_param('train_dir', PathLike,
@@ -114,7 +114,6 @@ class BaseModel(tf.keras.Model):
         If any config dict values have been changed, error out.
 
         .. todo::
-            - Throw a CustomError
             - Error only for config params that are used (use with config_check check)
             - Accumulate errors and error out at the end (like validate_config does)
         """
@@ -124,7 +123,7 @@ class BaseModel(tf.keras.Model):
 
                 if old_value != value and param_name in REG_CKPT_INCOMPATIBLE_PARAMS:
                     self._ckpt_restore.expect_partial()  # Don't warn about unused ckpt objects on exit
-                    raise ValueError(f'Changing the value of {param_name} from {old_value} to {value} has broken checkpoint compatibility')
+                    raise CheckpointIncompatibleError(param_name, old_value, value)
 
 
 
