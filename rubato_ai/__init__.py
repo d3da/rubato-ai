@@ -1,7 +1,7 @@
 """
 RubatoAI: An implementation of the Music Transformer and Performance RNN.
 
-.. todo:
+.. todo::
     High level overview of the project here
 """
 import os

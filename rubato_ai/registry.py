@@ -31,9 +31,9 @@ This may save some effort when writing that pesky documentation.
     - Document breaks_compatibility
     - Determine most useful defaults for breaks_compatibility
     - Rename those ugly global variables
+    - Move typevars to their own class?
 """
 import os
-import sys
 
 from typing import Dict, Set, Union, Type, Any
 
@@ -72,7 +72,7 @@ class ConfParam:
 
     def __str__(self):
         used_by = ', '.join(f':class:`{p.class_name}`' for p in REG_CONF_PARAMS_BY_NAME[self.name])
-        compat = ('Breaks' if self.breaks_compatibility else 'Doesn\'t break')
+        compat = ('**Breaks**' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
                 f'    Name        ``{self.name}``\n'
                 f'    Used by     {used_by}\n'
@@ -149,8 +149,6 @@ def register_param(name: str,
         if breaks_compatibility:
             REG_CKPT_INCOMPATIBLE_PARAMS.add(name)
 
-        _add_param_docstring(cls, param)
-
         return cls
 
     return _wrap_class
@@ -172,7 +170,7 @@ def register_link_param(choice_param: str,
 
         This relation is defined using this function as decorator::
 
-            @register_link_parameter('attn_type', {
+            @register_link_param('attn_type', {
                 'absolute':'MultiHeadAttention',
                 'relative':'RelativeGlobalAttention'
                 }
@@ -196,8 +194,6 @@ def register_link_param(choice_param: str,
 
         if breaks_compatibility:
             REG_CKPT_INCOMPATIBLE_PARAMS.add(choice_param)
-
-        _add_param_docstring(cls, link_param)
 
         return cls
 
@@ -232,33 +228,53 @@ def register_links(created_classes: Set[str]):
     def _wrap_class(cls):
         class_name = cls.__name__
         # print(f'{class_name}: Registering link to {created_classes}\n')
-
         REG_CLASS_LINKS[class_name] = created_classes
-
-        _add_link_docstring(cls, created_classes)
         return cls
 
     return _wrap_class
 
 
-def _add_param_docstring(cls, param: Union[ConfParam, LinkParam]):
+def document_registrations(cls):
     """
-    Add registered parameter information to the class docstring
+    Decorator to add information about registered parameters and links
+    to a class docstring.
 
     Since the registry is populated at import time, this can be used
-    to change auto-generated documentation like sphinx
-    """
-    if cls.__doc__ is None:
-        print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
-        return
-    cls.__doc__ += f'\n\n    | Configuration parameter used:\n\n{param}\n'
+    to populate auto-generated documentation with config parameters used.
+    
+    This decarator takes no arguments and should be put before the other registry decorators:
 
-def _add_link_docstring(cls, targets: Set[str]):
+    .. code-block:: python
+       :linenos:
+       :emphasize-lines: 1
+       
+       @document_registrations
+       @register_param(...)
+       @register_link_param(...)
+       @register_links(...)
+       class MyClass(...):
+           ...
     """
-    Add linked classses to docstring. Links are formatted for sphinx
-    """
+    # Decorator without arguments doesn't need the wrapper function
+    class_name = cls.__name__
     if cls.__doc__ is None:
-        print(f'Warning: class {cls.__name__} has no docstring', file=sys.stderr)
-        return
-    link_fmt = ', '.join([f':class:`{link}`' for link in targets])
-    cls.__doc__ += f'\n\n    | Class links to: {link_fmt}\n\n'
+        cls.__doc__ = ''
+
+    # ConfParam info
+    if class_name in REG_CONF_PARAMS_BY_CLASS_NAME:
+        cls.__doc__ += '\n\n\n    **Config parameters used**:\n'
+        for param in REG_CONF_PARAMS_BY_CLASS_NAME[class_name]:
+            cls.__doc__ += f'\n{param}\n'
+
+    # LinkParam info
+    if class_name in REG_LINK_PARAMS:
+        cls.__doc__ += '\n\n\n    **Link parameters**:\n'
+        for param in REG_LINK_PARAMS[class_name]:
+            cls.__doc__ += f'\n{param}\n'
+
+    # Linked classes
+    if class_name in REG_CLASS_LINKS:
+        link_fmt = ', '.join([f':class:`{link}`' for link in REG_CLASS_LINKS[class_name]])
+        cls.__doc__ += f'\n\n    | **Class links to**: {link_fmt}\n\n'
+
+    return cls

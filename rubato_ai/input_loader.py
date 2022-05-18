@@ -4,7 +4,7 @@ This class is messy, and will likely break with different tensorflow versions (t
 from typing import Tuple, List, Iterable, Optional
 
 from .midi_processor import MidiProcessor
-from .registry import register_param, register_links, PathLike, ConfDict
+from .registry import register_param, register_links, document_registrations, PathLike, ConfDict
 
 import os
 import csv
@@ -76,6 +76,7 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
         i += random.randrange(min_stride, max_stride + 1)
 
 
+@document_registrations
 @register_param('dataset_dir', PathLike, 'Path to the dataset to train on')
 @register_param('dataset_csv', PathLike, 'Path to the dataset index file, relative to dataset_dir')
 @register_param('sequence_length', int, '(Maximum) input sequence length')

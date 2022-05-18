@@ -6,10 +6,12 @@ import tensorflow as tf
 from .optimizer import Optimizer
 from .callbacks import TrainCallback
 from .input_loader import PerformanceInputLoader
-from .registry import register_param, register_links, PathLike, ConfDict, REG_CKPT_INCOMPATIBLE_PARAMS
+from .registry import register_param, register_links, document_registrations, \
+        PathLike, ConfDict, REG_CKPT_INCOMPATIBLE_PARAMS
 from .exceptions import CheckpointIncompatibleError
 
 
+@document_registrations
 @register_param('train_dir', PathLike,
                 'Path for saving checkpoints, tensorboard logs and samples')
 @register_param('kept_checkpoints', int,
@@ -66,16 +68,19 @@ class BaseModel(tf.keras.Model):
             directory=checkpoint_dir,
             max_to_keep=config['kept_checkpoints']
         )
+
+        print('\n') # print some newlines so we see where the tensorflow warnings end
+
         self._restored_checkpoint = False
         if restore_checkpoint:
             self._ckpt_restore = checkpoint.restore(self.checkpoint_mgr.latest_checkpoint)
             if self.batch_count != 0:
                 self._restored_checkpoint = True
-                print(f'Restored checkpoint (batch {self.batch_count}, epoch {self.epoch_count})')
+                print(f'Restored checkpoint (batch {self.batch_count}, epoch {self.epoch_count})\n')
             else:
                 # We are assuming that this means we are creating a new model
                 # TODO check whether a checkpoint exists for model_name?
-                print('Initialized model (we\'re at batch zero)')
+                print('Initialized model (we\'re at batch zero)\n')
 
         self.callbacks = [TrainCallback(config)]
         self.load_time = time.localtime()
@@ -117,18 +122,27 @@ class BaseModel(tf.keras.Model):
             - Error only for config params that are used (use with config_check check)
             - Accumulate errors and error out at the end (like validate_config does)
         """
-        if self._restored_checkpoint:
-            for param_name, value in config.items():
-                old_value = getattr(self, self._config_attr_prefix + param_name).value()
+        if not self._restored_checkpoint:
+            return
 
-                if old_value != value and param_name in REG_CKPT_INCOMPATIBLE_PARAMS:
-                    self._ckpt_restore.expect_partial()  # Don't warn about unused ckpt objects on exit
-                    raise CheckpointIncompatibleError(param_name, old_value, value)
+        for param_name, value in config.items():
+            old_value = getattr(self, self._config_attr_prefix + param_name).value()
+            if old_value == value:
+                continue
+
+            if param_name in REG_CKPT_INCOMPATIBLE_PARAMS:
+                # Don't warn about unused ckpt objects on exit
+                self._ckpt_restore.expect_partial()
+                raise CheckpointIncompatibleError(param_name, old_value, value)
+
+            else:
+                print(f'Warning: \'{param_name}\' changed from {old_value} to {value}')
+                # Update the attribute so the warning is shown only once
+                self.__setattr__(self._config_attr_prefix + param_name,
+                                 tf.Variable(value, trainable=False))
 
 
-
-if __name__ == '__main__':
-    exit()
+# if __name__ == '__main__':
 
     # # Simon & Oore (2018)
     # inner_model = RnnModel(

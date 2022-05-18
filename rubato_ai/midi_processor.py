@@ -3,11 +3,12 @@ https://arxiv.org/abs/1808.03715v1
 """
 from typing import List, Iterable
 
-from .registry import register_param, ConfDict
+from .registry import register_param, document_registrations, ConfDict
 
 import mido
 
 
+@document_registrations
 @register_param('time_granularity', int,
                 'Number of midi processor <TIME_SHIFT> events per second',
                 breaks_compatibility=True)

@@ -2,11 +2,13 @@ from .base_model import BaseModel
 from .transformer import TransformerModel
 from .rnn import RnnModel
 from .input_loader import PerformanceInputLoader
-from .registry import register_param, register_link_param, register_links, ConfDict
+from .registry import register_param, register_link_param, register_links, \
+        document_registrations, ConfDict
 from .config_check import validate_config
 
 import tensorflow as tf
 
+@document_registrations
 @register_link_param('model_type', {
     'transformer': 'TransformerModel',
     'rnn' : 'RnnModel',
@@ -21,6 +23,11 @@ class RubatoAI:
     """
     'Start' class used to instantiate the input loader and a selected subclass of BaseModel,
     based on the supplied configuration dictionary.
+
+    .. todo::
+        - Instantiate optimizer here (if training)
+        - Allow sampling only (without input loader / optimizer + loss):
+            - With or without avg_checkpoints
     """
 
     def __init__(self, model_name: str, restore_checkpoint: bool, config: ConfDict):

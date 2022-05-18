@@ -4,12 +4,13 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from .registry import register_param, register_links, PathLike, ConfDict
+from .registry import register_param, register_links, document_registrations, PathLike, ConfDict
 from .midi_processor import MidiProcessor
 
 from typing import Generator
 
 
+@document_registrations
 @register_param('train_dir', PathLike,
                 'Path for saving checkpoints, tensorboard logs and samples')
 @register_param('tensorboard_update_freq', int,

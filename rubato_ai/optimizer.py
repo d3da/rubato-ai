@@ -1,10 +1,12 @@
 from typing import Optional, Union, Callable
 
-from .registry import register_param, register_link_param, register_links, ConfDict
+from .registry import register_param, register_link_param, register_links, \
+        document_registrations, ConfDict
 
 import tensorflow as tf
 
 
+@document_registrations
 @register_link_param('learning_rate_schedule', {
     'standard' : 'StandardLearningRateSchedule',
     'noam' : 'NoamLearningRateSchedule',
@@ -41,6 +43,7 @@ class Optimizer:
         raise ValueError('config.learning_rate_schedule must be either \'standard\' or \'noam\'')
 
 
+@document_registrations
 @register_param('warmup_steps', int, 'Warmup steps for Noam schedule')
 @register_param('embed_dim', int, 'Model hidden dimension size')
 class NoamLearningRateSchedule:
@@ -56,12 +59,14 @@ class NoamLearningRateSchedule:
         return self._embed_dim ** (-0.5) * min_part
 
 
+@document_registrations
 @register_param('learning_rate', float, 'Adam optimizer learning rate')
 class StandardLearningRateSchedule:
     """Dummy class used to register the optional learning rate hyperparameter"""
     pass
 
 
+@document_registrations
 @register_param('adam_beta1', float, 'Beta1 parameter of Adam optimizer')
 @register_param('adam_beta2', float, 'Beta2 parameter of Adam optimizer')
 @register_param('adam_eps', float, 'Epsilon parameter of Adam optimizer')

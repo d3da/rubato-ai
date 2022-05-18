@@ -10,7 +10,8 @@ from typing import Optional
 
 from .input_loader import PerformanceInputLoader
 from .base_model import BaseModel
-from .registry import register_param, register_links, register_link_param, ConfDict
+from .registry import register_param, register_links, register_link_param, \
+        document_registrations, ConfDict
 
 
 def causal_attention_mask(batch_size, n_dest, n_src, dtype):
@@ -30,6 +31,7 @@ def causal_attention_mask(batch_size, n_dest, n_src, dtype):
     return tf.tile(mask, mult)
 
 
+@document_registrations
 @register_param('attn_heads', int,
                 'Number of attention heads',
                 breaks_compatibility=True)
@@ -118,6 +120,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         return attn_score
 
 
+@document_registrations
 @register_param('max_relative_pos', int,
                 'Clipping distance of relative positional encodings',
                 breaks_compatibility=True)
@@ -178,6 +181,7 @@ class RelativeGlobalAttention(MultiHeadAttention):
         return x[:, :, 1:, :]  # (B, h, seq_q, seq_r)
 
 
+@document_registrations
 @register_link_param('attn_type', {
     'absolute': 'MultiHeadAttention',
     'relative': 'RelativeGlobalAttention'
@@ -299,6 +303,7 @@ class SharedTokenEmbedding(tf.keras.layers.Layer):
         return tf.einsum('bsm,tm->bst', inputs, self.emb_matrix)
 
 
+@document_registrations
 @register_param('sequence_length', int,
                 'Maximum input sequence length',
                 breaks_compatibility=True)
