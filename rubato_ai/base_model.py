@@ -7,7 +7,7 @@ from .optimizer import Optimizer
 from .callbacks import TrainCallback
 from .input_loader import PerformanceInputLoader
 from .registry import register_param, register_links, document_registrations, \
-        PathLike, ConfDict, REG_CKPT_INCOMPATIBLE_PARAMS
+        PathLike, ConfDict, CONFIG_REGISTRY
 from .exceptions import CheckpointIncompatibleError
 
 
@@ -33,6 +33,7 @@ class BaseModel(tf.keras.Model):
     .. todo::
         - Move checkpoint compatibility logic to a different (Mixin) class
         - Instantiate the optimizer and loss in RubatoAI (like the input loader)
+        - Abstract methods for sample_music etc.
     """
     _config_attr_prefix = '_config_attr_prefix'
 
@@ -130,7 +131,7 @@ class BaseModel(tf.keras.Model):
             if old_value == value:
                 continue
 
-            if param_name in REG_CKPT_INCOMPATIBLE_PARAMS:
+            if CONFIG_REGISTRY.breaks_checkpoint_compatibility(param_name):
                 # Don't warn about unused ckpt objects on exit
                 self._ckpt_restore.expect_partial()
                 raise CheckpointIncompatibleError(param_name, old_value, value)

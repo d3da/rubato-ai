@@ -33,13 +33,10 @@ class RnnModel(BaseModel):
     Dense   -> (64, 512a, 413)  (no activation)
 
     .. todo::
-        parametric number of layers
-    .. todo::
-        select 'lstm' or 'gru'
-    .. todo::
-        test this model
-    .. todo::
-        it doesn't work with ``config['mixed_precision']``
+        - parametric number of layers
+        - select 'lstm' or 'gru'
+        - test this model
+        - it doesn't work with ``config['mixed_precision']``
     """
     def __init__(self,
                  model_name: str,

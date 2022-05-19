@@ -37,24 +37,99 @@ import os
 
 from typing import Dict, Set, Union, Type, Any
 
+from tensorflow.python.ops.gen_random_ops import parameterized_truncated_normal
+
 PathLike = Union[str, bytes, os.PathLike]
 ConfDict = Dict[str, Any]
 
 
-# All config parameters, accessed by parameter name
-REG_CONF_PARAMS_BY_NAME: Dict[str, Set['ConfParam']] = {}
+class ConfigRegistry:
+    """
+    .. todo::
+        hi
+    """
+    def __init__(self):
+        self.conf_params_by_name: Dict[str, Set['ConfParam']] = {}
+        """All config parameters, accessed by parameter name"""
 
-# All config parameters, accessed by class name
-REG_CONF_PARAMS_BY_CLASS_NAME: Dict[str, Set['ConfParam']] = {}
+        self.conf_params_by_class_name: Dict[str, Set['ConfParam']] = {}
+        """All config parameters, accessed by class name"""
 
-# Set of classes created by key class during initialization, including possibly a superclass
-REG_CLASS_LINKS: Dict[str, Set[str]] = {}
+        self.class_links: Dict[str, Set[str]] = {}
+        """Set of classes created by key class during initialization,
+        including possibly a superclass"""
 
-# Link parameters accesses by class name
-REG_LINK_PARAMS: Dict[str, Set['LinkParam']] = {}
+        self.link_params: Dict[str, Set['LinkParam']] = {}
+        """Link parameters accesses by class name"""
 
-# Config parameters that break checkpoint compatibility with a change in value
-REG_CKPT_INCOMPATIBLE_PARAMS: Set[str] = set()
+        self.ckpt_incompatible_params: Set[str] = set()
+        """Config parameters that break checkpoint compatibility with a change in value"""
+
+    def _register_param(self, class_name: str, name: str, conf_type: Type,
+                        description: str, breaks_compatibility: bool):
+        param = ConfParam(class_name, name, conf_type, description, breaks_compatibility)
+        # TODO check if param already exists
+        if name not in self.conf_params_by_name:
+            self.conf_params_by_name[name] = set()
+        self.conf_params_by_name[name].add(param)
+
+        if class_name not in self.conf_params_by_class_name:
+            self.conf_params_by_class_name[class_name] = set()
+        self.conf_params_by_class_name[class_name].add(param)
+
+        if breaks_compatibility:
+            self.ckpt_incompatible_params.add(name)
+
+    def _register_link_param(self, class_name: str, choice_param: str,
+                             choice_options: Dict[str, str],
+                             description: str,
+                             breaks_compatibility: bool):
+        link_param = LinkParam(class_name, choice_param, choice_options, description,
+                               breaks_compatibility)
+
+        if class_name not in self.link_params:
+            self.link_params[class_name] = set()
+        self.link_params[class_name].add(link_param)
+
+        if breaks_compatibility:
+            self.ckpt_incompatible_params.add(choice_param)
+
+    def _register_links(self, class_name: str, created_classes: Set[str]):
+        self.class_links[class_name] = created_classes
+
+    def generate_config_docstring(self, class_name: str) -> str:
+        """
+        Create a (doc)string containing info about all config parameters,
+        link parameters and links registered by a class.
+        """
+        docstring = ''
+        # ConfParam info
+        if class_name in self.conf_params_by_class_name:
+            docstring += '\n\n\n    **Config parameters used**:\n'
+            for param in self.conf_params_by_class_name[class_name]:
+                docstring += f'\n{param}\n'
+        # LinkParam info
+        if class_name in self.link_params:
+            docstring += '\n\n\n    **Link parameters**:\n'
+            for param in self.link_params[class_name]:
+                docstring += f'\n{param}\n'
+        # Linked classes
+        if class_name in self.class_links:
+            link_fmt = ', '.join([f':class:`{link}`' for link in self.class_links[class_name]])
+            docstring += f'\n\n    | **Class links to**: {link_fmt}\n\n'
+
+        return docstring
+    
+    def breaks_checkpoint_compatibility(self, parameter_name: str) -> bool:
+        """
+        Return whether a parameter has been registered anywhere with the setting
+        ``breaks_compatibility = True``.
+        """
+        return parameter_name in self.ckpt_incompatible_params
+
+
+CONFIG_REGISTRY = ConfigRegistry()
+"""'Global' instance of the config registry that can be populated with config parameters"""
 
 
 class ConfParam:
@@ -71,7 +146,8 @@ class ConfParam:
         self.breaks_compatibility = breaks_compatibility
 
     def __str__(self):
-        used_by = ', '.join(f':class:`{p.class_name}`' for p in REG_CONF_PARAMS_BY_NAME[self.name])
+        # TODO pass CONFIG_REGISTRY as parameter?
+        used_by = ', '.join(f':class:`{p.class_name}`' for p in CONFIG_REGISTRY.conf_params_by_name[self.name])
         compat = ('**Breaks**' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
                 f'    Name        ``{self.name}``\n'
@@ -96,7 +172,8 @@ class LinkParam():
         self.breaks_compatibility = breaks_compatibility
 
     def __str__(self):
-        choices = '\n\n                '.join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
+        choices = '\n\n                ' \
+                .join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
         compat = ('Breaks' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
                 f'    Name        ``{self.choice_param}``\n'
@@ -135,20 +212,8 @@ def register_param(name: str,
         class_name = cls.__name__
         # print(f'{class_name}: Registering config parameter \'{name}\'')
         # print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
-
-        param = ConfParam(class_name, name, conf_type, description, breaks_compatibility)
-        # TODO check if param already exists
-        if name not in REG_CONF_PARAMS_BY_NAME:
-            REG_CONF_PARAMS_BY_NAME[name] = set()
-        REG_CONF_PARAMS_BY_NAME[name].add(param)
-
-        if class_name not in REG_CONF_PARAMS_BY_CLASS_NAME:
-            REG_CONF_PARAMS_BY_CLASS_NAME[class_name] = set()
-        REG_CONF_PARAMS_BY_CLASS_NAME[class_name].add(param)
-
-        if breaks_compatibility:
-            REG_CKPT_INCOMPATIBLE_PARAMS.add(name)
-
+        CONFIG_REGISTRY._register_param(class_name, name, conf_type, description,
+                                        breaks_compatibility)
         return cls
 
     return _wrap_class
@@ -185,16 +250,8 @@ def register_link_param(choice_param: str,
     """
     def _wrap_class(cls):
         class_name = cls.__name__
-
-        link_param = LinkParam(class_name, choice_param, choice_options, description, breaks_compatibility)
-
-        if class_name not in REG_LINK_PARAMS:
-            REG_LINK_PARAMS[class_name] = set()
-        REG_LINK_PARAMS[class_name].add(link_param)
-
-        if breaks_compatibility:
-            REG_CKPT_INCOMPATIBLE_PARAMS.add(choice_param)
-
+        CONFIG_REGISTRY._register_link_param(class_name, choice_param, choice_options, 
+                                             description, breaks_compatibility)
         return cls
 
     return _wrap_class
@@ -228,7 +285,7 @@ def register_links(created_classes: Set[str]):
     def _wrap_class(cls):
         class_name = cls.__name__
         # print(f'{class_name}: Registering link to {created_classes}\n')
-        REG_CLASS_LINKS[class_name] = created_classes
+        CONFIG_REGISTRY._register_links(class_name, created_classes)
         return cls
 
     return _wrap_class
@@ -260,21 +317,5 @@ def document_registrations(cls):
     if cls.__doc__ is None:
         cls.__doc__ = ''
 
-    # ConfParam info
-    if class_name in REG_CONF_PARAMS_BY_CLASS_NAME:
-        cls.__doc__ += '\n\n\n    **Config parameters used**:\n'
-        for param in REG_CONF_PARAMS_BY_CLASS_NAME[class_name]:
-            cls.__doc__ += f'\n{param}\n'
-
-    # LinkParam info
-    if class_name in REG_LINK_PARAMS:
-        cls.__doc__ += '\n\n\n    **Link parameters**:\n'
-        for param in REG_LINK_PARAMS[class_name]:
-            cls.__doc__ += f'\n{param}\n'
-
-    # Linked classes
-    if class_name in REG_CLASS_LINKS:
-        link_fmt = ', '.join([f':class:`{link}`' for link in REG_CLASS_LINKS[class_name]])
-        cls.__doc__ += f'\n\n    | **Class links to**: {link_fmt}\n\n'
-
+    cls.__doc__ += CONFIG_REGISTRY.generate_config_docstring(class_name)
     return cls
