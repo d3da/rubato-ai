@@ -2,29 +2,44 @@ import os
 
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
 
-default_conf = {
-    'mixed_precision': True,  # ?
+_path_config = {
+    'train_dir': PROJECT_DIR,
+    'dataset_dir': os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0'),
+    'dataset_csv': 'maestro-v3.0.0.csv',  # relative to dataset_dir
+}
 
-    # Input loader settings
+_data_config = {
+    # Input loader
     'sequence_length': 2048,
     'batch_size': 2,
     'augmentation': 'aug-',
     'min_stride': 1024,  # ?
     'max_stride': 2048,  # ?
-
-    # Midi processor settings
+    # Midi processor
     'time_granularity': 100,
     'piece_start': True,  # ?
     'piece_end': True,  # ?
-
-    # dataset generator settings
+    # dataset generator
     'shuffle_buffer_size': 8096,
     'queue_size': 16,  # No impact on model performance
     'num_threads': 14,  # TODO 'automatic' setting
+}
 
-    # TODO Performance RNN / Vaswani hparams
+_train_loop_config = {
+    'tensorboard_update_freq': 25,
+    'sample_midi_freq': 500,
+    'sample_midi_length': 512,
+    'validation_freq': 2500,
+    'validation_batches': 250,
+    'save_checkpoint_freq': 500,
+    'kept_checkpoints': 5,
+}
 
-    # Model settings: (Transformer)
+huang2018_relative_attn = {
+    **_path_config,
+    **_train_loop_config,
+    **_data_config,
+    'mixed_precision': True,  # Should we use this?
     'model_type': 'transformer',
     'num_layers': 8,
     'drop_rate': 0.2,
@@ -41,31 +56,20 @@ default_conf = {
     'adam_beta2': 0.98,
     'adam_eps': 1e-9,
     'label_smoothing': 0.1,  # ?
-
-    # Model settings (RNN)
-    # 'mixed_precision': False,
-    # 'model_type': 'rnn',
-    # 'drop_rate': 0.,
-    # 'rnn_units': 512,
-    # 'learning_rate_schedule': 'standard',
-    # 'learning_rate': 1e-3,
-    # 'adam_beta1': 0.9,
-    # 'adam_beta2': 0.98,
-    # 'adam_eps': 1e-9,
-    # 'label_smoothing': 0.0,
-
-    # Train loop settings
-    'tensorboard_update_freq': 25,
-    'sample_midi_freq': 500,
-    'sample_midi_length': 512,
-    'validation_freq': 2500,
-    'validation_batches': 250,
-    'save_checkpoint_freq': 500,
-    'kept_checkpoints': 5,
-
-    'train_dir': PROJECT_DIR,
-    'dataset_dir': os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0'),
-    'dataset_csv': 'maestro-v3.0.0.csv',  # relative to dataset_dir
 }
+"""Huang et al. 2018 Transformer with relative global attention"""
 
+default_conf = huang2018_relative_attn
+"""Config to use if not overridden via command-line argument"""
 
+# Model settings (RNN) TODO
+# 'mixed_precision': False,
+# 'model_type': 'rnn',
+# 'drop_rate': 0.,
+# 'rnn_units': 512,
+# 'learning_rate_schedule': 'standard',
+# 'learning_rate': 1e-3,
+# 'adam_beta1': 0.9,
+# 'adam_beta2': 0.98,
+# 'adam_eps': 1e-9,
+# 'label_smoothing': 0.0,
