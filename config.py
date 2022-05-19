@@ -3,19 +3,19 @@ import os
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 default_conf = {
-    'mixed_precision': True,
+    'mixed_precision': True,  # ?
 
     # Input loader settings
     'sequence_length': 2048,
     'batch_size': 2,
     'augmentation': 'aug-',
-    'min_stride': 1024,
-    'max_stride': 2048,
+    'min_stride': 1024,  # ?
+    'max_stride': 2048,  # ?
 
     # Midi processor settings
     'time_granularity': 100,
-    'piece_start': True,
-    'piece_end': True,
+    'piece_start': True,  # ?
+    'piece_end': True,  # ?
 
     # dataset generator settings
     'shuffle_buffer_size': 8096,
@@ -32,7 +32,7 @@ default_conf = {
     'embed_dim': 512,
     'attn_dim': 384,
     'attn_heads': 8,
-    'ff_dim': 1024,
+    'ff_dim': 1024,  # ?
     'attn_type': 'relative',
     'max_relative_pos': 1024,
     'learning_rate_schedule': 'noam',
@@ -40,7 +40,7 @@ default_conf = {
     'adam_beta1': 0.9,
     'adam_beta2': 0.98,
     'adam_eps': 1e-9,
-    'label_smoothing': 0.1,
+    'label_smoothing': 0.1,  # ?
 
     # Model settings (RNN)
     # 'mixed_precision': False,
@@ -61,7 +61,7 @@ default_conf = {
     'validation_freq': 2500,
     'validation_batches': 250,
     'save_checkpoint_freq': 500,
-    'kept_checkpoints': 25,
+    'kept_checkpoints': 5,
 
     'train_dir': PROJECT_DIR,
     'dataset_dir': os.path.join(PROJECT_DIR, 'data/maestro-v3.0.0'),

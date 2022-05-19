@@ -1,5 +1,8 @@
 """
 This class is messy, and will likely break with different tensorflow versions (tested on 2.7.0)
+
+.. todo::
+    - Deterministic sequence windows (no random stride but something clever)
 """
 from typing import Tuple, List, Iterable, Optional
 

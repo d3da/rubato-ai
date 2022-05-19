@@ -21,7 +21,7 @@ Since the decorators run at import time, we populate the register as
 soon as the relevant classes are imported.
 This allows to change the docstrings of those classes at import time,
 documenting which parameters are used just by registering them.
-This may save some effort when writing that pesky documentation.
+This can be done with the decorator :meth:`document_registrations`.
 
 .. seealso::
     Module :py:mod:`.config_check`
@@ -29,15 +29,11 @@ This may save some effort when writing that pesky documentation.
 
 .. todo::
     - Document breaks_compatibility
-    - Determine most useful defaults for breaks_compatibility
-    - Rename those ugly global variables
     - Move typevars to their own class?
 """
 import os
 
 from typing import Dict, Set, Union, Type, Any
-
-from tensorflow.python.ops.gen_random_ops import parameterized_truncated_normal
 
 PathLike = Union[str, bytes, os.PathLike]
 ConfDict = Dict[str, Any]
@@ -46,7 +42,7 @@ ConfDict = Dict[str, Any]
 class ConfigRegistry:
     """
     .. todo::
-        hi
+        document this
     """
     def __init__(self):
         self.conf_params_by_name: Dict[str, Set['ConfParam']] = {}
@@ -201,9 +197,6 @@ def register_param(name: str,
             class MultiHeadAttention(...):
                 ...
 
-    After adding the parameter to the registry, an overview of the parameter
-    is appended to the class docstring, formatted in reStructuredText.
-
     .. todo::
         handle two classes using same parameter (check the type or sth)
     """
@@ -243,9 +236,6 @@ def register_link_param(choice_param: str,
             class TransformerBlock(...):
                 ...
 
-    After adding the link parameter to the registry, an overview of the link parameter
-    is appended to the class docstring, formatted in reStructuredText.
-
     For unconditional links, see :meth:`register_links`
     """
     def _wrap_class(cls):
@@ -276,9 +266,6 @@ def register_links(created_classes: Set[str]):
             @register_links({'MultiHeadAttention'})
             class RelativeGlobalAttention(MultiHeadAttention):
                 ...
-
-    After adding the links to the registry, a description of the link is appended to the class docstring.
-    This link description is formatted with reStructuredText.
 
     For optional links, see :meth:`register_link_param`.
     """
