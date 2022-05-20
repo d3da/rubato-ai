@@ -5,7 +5,6 @@ import numpy as np
 import tensorflow as tf
 
 from .registry import register_param, register_links, document_registrations, PathLike, ConfDict
-from .midi_processor import MidiProcessor
 
 from typing import Generator
 
@@ -27,7 +26,6 @@ from typing import Generator
                 'Batches between saving checkpoint to disk')
 @register_param('kept_checkpoints', int,
                 'Number of checkpoints to save in checkpoint directory')
-@register_links({'MidiProcessor'})
 class TrainCallback(tf.keras.callbacks.Callback):
     """
     Custom callback that provides "improvements" over the default
@@ -44,6 +42,8 @@ class TrainCallback(tf.keras.callbacks.Callback):
         this class has become bloated and should be split up into multiple Callbacks
         and moved to a different file.
 
+    .. todo::
+        Actally use the sample_midi_length params etc
     """
     def __init__(self, config: ConfDict):
         super().__init__()
@@ -61,8 +61,6 @@ class TrainCallback(tf.keras.callbacks.Callback):
         self._batch_start_time = 0.
         self._writer = None  # Defer instantiating writer and sample subdirectories before training
         self._sample_subdir = None  # to avoid making empty subdirectories when not training
-
-        self._midi_processor = MidiProcessor(config)
 
     def on_train_begin(self, logs=None):
         """"""
@@ -112,12 +110,7 @@ class TrainCallback(tf.keras.callbacks.Callback):
         if step % self._save_midi_freq == 0:
             # Generate sample
             music = self.model.sample_music()
-            for i, seq in enumerate(music):
-                events = self._midi_processor.indices_to_events(seq)
-                midi = self._midi_processor.events_to_midi(events)
-                assert self._sample_subdir is not None
-                midi_path = os.path.join(os.path.join(self._sample_subdir, f'{self.model.name}_{step}_{i}.midi'))
-                midi.save(midi_path)
+            self.model.save_samples(music, self._sample_subdir)
 
         if step % self._save_checkpoint_freq == 0:
             self.model.checkpoint_mgr.save()

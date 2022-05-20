@@ -35,7 +35,7 @@ import os
 
 from typing import Dict, Set, Union, Type, Any
 
-PathLike = Union[str, bytes, os.PathLike]
+PathLike = Union[str, os.PathLike]
 ConfDict = Dict[str, Any]
 
 

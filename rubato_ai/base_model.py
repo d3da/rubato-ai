@@ -6,9 +6,12 @@ import tensorflow as tf
 from .optimizer import Optimizer
 from .callbacks import TrainCallback
 from .input_loader import PerformanceInputLoader
+from .midi_processor import MidiProcessor
 from .registry import register_param, register_links, document_registrations, \
         PathLike, ConfDict, CONFIG_REGISTRY
 from .exceptions import CheckpointIncompatibleError
+
+from typing import Iterable
 
 
 @document_registrations
@@ -18,7 +21,7 @@ from .exceptions import CheckpointIncompatibleError
                 'Number of checkpoints to save in checkpoint directory')
 @register_param('label_smoothing', float,
                 'Amount of label smoothing regularization to apply to training examples')
-@register_links({'Optimizer', 'TrainCallback'})
+@register_links({'Optimizer', 'TrainCallback', 'MidiProcessor'})
 class BaseModel(tf.keras.Model):
     """
     Base class inherited by TransformerModel and RnnModel.
@@ -45,6 +48,8 @@ class BaseModel(tf.keras.Model):
         super().__init__(name=model_name)
         self.input_loader = input_loader
         self.train_dir = config['train_dir']
+
+        self.midi_processor = MidiProcessor(config)
 
         self._batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self._epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
@@ -141,6 +146,39 @@ class BaseModel(tf.keras.Model):
                 # Update the attribute so the warning is shown only once
                 self.__setattr__(self._config_attr_prefix + param_name,
                                  tf.Variable(value, trainable=False))
+
+    def sample_music(self, sample_length: int, temperature: float,
+                     num_samples: int, verbose: bool):
+        """
+        Abstract method to be implemented by subclasses
+        .. todo::
+            Primers, unify arguments between transformer/rnn models etc
+        """
+        raise NotImplementedError
+
+    def save_samples(self, samples: Iterable, sample_directory: PathLike):
+        """
+        Save each sample from an iterable of model-generated sample to disk
+
+        .. todo::
+            - Call sample_music from here
+            - Better path collision prevention
+        """
+        for i, seq in enumerate(samples):
+            events = self.midi_processor.indices_to_events(seq)
+            midi = self.midi_processor.events_to_midi(events)
+
+            # TODO this is a terrible way to prevent overwriting lol
+            for _ in range(9999):
+                midi_path = os.path.join(sample_directory, f'{self.name}_{self.batch_count}_{i}.midi')
+                if not os.path.exists(midi_path):
+                    break
+                i += 1
+            else:
+                raise FileExistsError
+
+            midi.save(midi_path)
+
 
 
 # if __name__ == '__main__':

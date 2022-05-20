@@ -63,3 +63,11 @@ class RubatoAI:
 
     def train(self, epochs: int):
         self.model.train(epochs)
+
+    # TODO sample without training
+    def sample(self, sample_length: int, temperature: float, num_samples: int):
+        music = self.model.sample_music(sample_length=sample_length, temperature=temperature,
+                                         num_samples=num_samples, verbose=True)
+        # TODO see traincallback, move that sample_saving code to basemodel?
+        raise NotImplementedError
+        self.model.save_samples(music, '???')
