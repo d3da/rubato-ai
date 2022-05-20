@@ -21,7 +21,7 @@ def check_unused_params(config: ConfDict):
             found_usage = False
             for params_by_class in CONFIG_REGISTRY.link_params.values():
                 for link_param in params_by_class:
-                    if param_name == link_param.choice_param:
+                    if param_name == link_param.param_name:
                         found_usage = True
 
             if not found_usage:
@@ -29,7 +29,7 @@ def check_unused_params(config: ConfDict):
 
 
 def _check_param(param: ConfParam, config: ConfDict):
-    if param.name not in config:
+    if param.param_name not in config:
         raise ConfParamUnsetError(param)
 
     # Comment out this function call if the type checking causes problems
@@ -42,8 +42,7 @@ def _check_param_type(param: ConfParam, config: ConfDict):
     This check currently uses an import (typing_inspect) and may cause problems with
     different python versions (tested on 3.8).
     """
-
-    value = config[param.name]
+    value = config[param.param_name]
 
     # Special case for Union[...] types, they cannot be checked normally
     # see https://bugs.python.org/issue44529
@@ -62,14 +61,14 @@ def _check_param_type(param: ConfParam, config: ConfDict):
 def _check_link_param(link_param: LinkParam,
                       config: ConfDict,
                       _visited_clases: List[str]) -> int:
-    if link_param.choice_param not in config:
+    if link_param.param_name not in config:
         raise LinkParamUnsetError(link_param)
 
-    choice = config[link_param.choice_param]
-    if choice not in link_param.choice_options:
+    choice = config[link_param.param_name]
+    if choice not in link_param.link_options:
         raise LinkParamWrongValueError(link_param, choice)
     
-    return check_config(link_param.choice_options[choice], config, _visited_clases)
+    return check_config(link_param.link_options[choice], config, _visited_clases)
 
 
 def check_config(check_class: str,

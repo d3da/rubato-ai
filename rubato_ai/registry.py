@@ -61,26 +61,26 @@ class ConfigRegistry:
         self.ckpt_incompatible_params: Set[str] = set()
         """Config parameters that break checkpoint compatibility with a change in value"""
 
-    def _register_param(self, class_name: str, name: str, conf_type: Type,
+    def _register_param(self, class_name: str, param_name: str, conf_type: Type,
                         description: str, breaks_compatibility: bool):
-        param = ConfParam(class_name, name, conf_type, description, breaks_compatibility)
+        param = ConfParam(class_name, param_name, conf_type, description, breaks_compatibility)
         # TODO check if param already exists
-        if name not in self.conf_params_by_name:
-            self.conf_params_by_name[name] = set()
-        self.conf_params_by_name[name].add(param)
+        if param_name not in self.conf_params_by_name:
+            self.conf_params_by_name[param_name] = set()
+        self.conf_params_by_name[param_name].add(param)
 
         if class_name not in self.conf_params_by_class_name:
             self.conf_params_by_class_name[class_name] = set()
         self.conf_params_by_class_name[class_name].add(param)
 
         if breaks_compatibility:
-            self.ckpt_incompatible_params.add(name)
+            self.ckpt_incompatible_params.add(param_name)
 
-    def _register_link_param(self, class_name: str, choice_param: str,
-                             choice_options: Dict[str, str],
+    def _register_link_param(self, class_name: str, param_name: str,
+                             link_options: Dict[str, str],
                              description: str,
                              breaks_compatibility: bool):
-        link_param = LinkParam(class_name, choice_param, choice_options, description,
+        link_param = LinkParam(class_name, param_name, link_options, description,
                                breaks_compatibility)
 
         if class_name not in self.link_params:
@@ -88,7 +88,7 @@ class ConfigRegistry:
         self.link_params[class_name].add(link_param)
 
         if breaks_compatibility:
-            self.ckpt_incompatible_params.add(choice_param)
+            self.ckpt_incompatible_params.add(param_name)
 
     def _register_links(self, class_name: str, created_classes: Set[str]):
         self.class_links[class_name] = created_classes
@@ -116,12 +116,12 @@ class ConfigRegistry:
 
         return docstring
     
-    def breaks_checkpoint_compatibility(self, parameter_name: str) -> bool:
+    def breaks_checkpoint_compatibility(self, param_name: str) -> bool:
         """
         Return whether a parameter has been registered anywhere with the setting
         ``breaks_compatibility = True``.
         """
-        return parameter_name in self.ckpt_incompatible_params
+        return param_name in self.ckpt_incompatible_params
 
 
 CONFIG_REGISTRY = ConfigRegistry()
@@ -131,22 +131,22 @@ CONFIG_REGISTRY = ConfigRegistry()
 class ConfParam:
     def __init__(self,
                  class_name: str,
-                 name: str,
+                 param_name: str,
                  conf_type: Type,
                  description: str,
                  breaks_compatibility: bool):
         self.class_name = class_name
-        self.name = name
+        self.param_name = param_name
         self.conf_type = conf_type
         self.description = description
         self.breaks_compatibility = breaks_compatibility
 
     def __str__(self):
         # TODO pass CONFIG_REGISTRY as parameter?
-        used_by = ', '.join(f':class:`{p.class_name}`' for p in CONFIG_REGISTRY.conf_params_by_name[self.name])
+        used_by = ', '.join(f':class:`{p.class_name}`' for p in CONFIG_REGISTRY.conf_params_by_name[self.param_name])
         compat = ('**Breaks**' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
-                f'    Name        ``{self.name}``\n'
+                f'    Name        ``{self.param_name}``\n'
                 f'    Used by     {used_by}\n'
                 f'    Type        ``{self.conf_type}``\n'
                 f'    Description {self.description}\n'
@@ -156,23 +156,23 @@ class ConfParam:
 
 class LinkParam():
     def __init__(self,
-                 from_class: str,
-                 choice_param: str,
-                 choice_options: Dict[str, str],
+                 class_name: str,
+                 param_name: str,
+                 link_options: Dict[str, str],
                  description: str,
                  breaks_compatibility: bool):
-        self.from_class = from_class
-        self.choice_param = choice_param
-        self.choice_options = choice_options
+        self.class_name = class_name
+        self.param_name = param_name
+        self.link_options = link_options
         self.description = description
         self.breaks_compatibility = breaks_compatibility
 
     def __str__(self):
         choices = '\n\n                ' \
-                .join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.choice_options.items())
+                .join(f'``\'{k}\'`` -> :class:`{v}`' for k, v in self.link_options.items())
         compat = ('Breaks' if self.breaks_compatibility else 'Doesn\'t break')
         return (f'    =========== ==================\n'
-                f'    Name        ``{self.choice_param}``\n'
+                f'    Name        ``{self.param_name}``\n'
                 f'    Type        Link Parameter\n'
                 f'    Choices     {choices}\n'
                 f'    Description {self.description}\n'
@@ -180,7 +180,7 @@ class LinkParam():
                 f'    =========== ==================\n')
 
 
-def register_param(name: str,
+def register_param(param_name: str,
                    conf_type: Type,
                    description: str = 'No description provided',
                    breaks_compatibility: bool = False):
@@ -203,17 +203,17 @@ def register_param(name: str,
 
     def _wrap_class(cls):
         class_name = cls.__name__
-        # print(f'{class_name}: Registering config parameter \'{name}\'')
+        # print(f'{class_name}: Registering config parameter \'{param_name}\'')
         # print(f'\tType: {conf_type}\n\tDescription: {description}\n\tDefault: {default}\n')
-        CONFIG_REGISTRY._register_param(class_name, name, conf_type, description,
+        CONFIG_REGISTRY._register_param(class_name, param_name, conf_type, description,
                                         breaks_compatibility)
         return cls
 
     return _wrap_class
 
 
-def register_link_param(choice_param: str,
-                        choice_options: Dict[str, str],
+def register_link_param(param_name: str,
+                        link_options: Dict[str, str],
                         description: str = 'No description provided',
                         breaks_compatibility: bool = True):
     """
@@ -240,7 +240,7 @@ def register_link_param(choice_param: str,
     """
     def _wrap_class(cls):
         class_name = cls.__name__
-        CONFIG_REGISTRY._register_link_param(class_name, choice_param, choice_options, 
+        CONFIG_REGISTRY._register_link_param(class_name, param_name, link_options, 
                                              description, breaks_compatibility)
         return cls
 
