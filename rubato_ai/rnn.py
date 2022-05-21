@@ -44,7 +44,6 @@ class RnnModel(BaseModel):
                  restore_checkpoint: bool,
                  config: ConfDict):
         super().__init__(model_name, input_loader, restore_checkpoint, config)
-        self._vocab_size = self.input_loader.vocab_size
         self._rnn_units = config['rnn_units']
         self._drop_rate = config['drop_rate']
 
@@ -61,13 +60,13 @@ class RnnModel(BaseModel):
                                           return_sequences=True,
                                           return_state=True,
                                           dropout=self._drop_rate)
-        self.dense = tf.keras.layers.Dense(self._vocab_size)
+        self.dense = tf.keras.layers.Dense(self.vocab_size)
 
     def call(self, inputs, training=False, states=None, return_states=False):
         """
         Use builtin self.__call__() instead
         """
-        x = tf.one_hot(inputs, self._vocab_size)
+        x = tf.one_hot(inputs, self.vocab_size)
         if states is None:
             s_1, c_1 = self.lstm1.get_initial_state(x)
             s_2, c_2 = self.lstm2.get_initial_state(x)

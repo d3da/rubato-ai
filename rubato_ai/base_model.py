@@ -50,6 +50,7 @@ class BaseModel(tf.keras.Model):
         self.train_dir = config['train_dir']
 
         self.midi_processor = MidiProcessor(config)
+        self.vocab_size = self.midi_processor.vocab_size
 
         self._batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self._epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)

@@ -342,11 +342,10 @@ class TransformerModel(BaseModel):
                  restore_checkpoint: bool,
                  config: ConfDict):
         super().__init__(model_name, input_loader, restore_checkpoint, config)
-        self._vocab_size = self.input_loader.vocab_size
         self._sequence_length = config['sequence_length']
         self._embed_dim = config['embed_dim']
 
-        self.inp_emb = SharedTokenEmbedding(self._vocab_size, self._embed_dim)
+        self.inp_emb = SharedTokenEmbedding(self.vocab_size, self._embed_dim)
         self.pos_enc = PositionalEncoding(self._sequence_length, self._embed_dim)
         self.inp_dropout = tf.keras.layers.Dropout(config['drop_rate'])
 
@@ -363,7 +362,7 @@ class TransformerModel(BaseModel):
             document this
         """
         # inputs: (batch, seq_len)
-        x = tf.one_hot(inputs, self._vocab_size)
+        x = tf.one_hot(inputs, self.vocab_size)
         # x: (batch, seq_len, vocab_size)
         x = self.inp_emb(x, encode=True, training=training)
         # x: (batch, seq_len, embed_dim)
