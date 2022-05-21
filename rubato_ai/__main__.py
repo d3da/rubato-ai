@@ -7,15 +7,10 @@ Command-line interface to RubatoAI.
     - Define action using sub_commands
           `<https://docs.python.org/dev/library/argparse.html#sub-commands>`_
     - move model-name to config.py
-    - Flag to skip config check
     - Flag to skip checkpoint compatibility check
     - Help strings for each argument
     - Should we be able to --sample with --no-restore-checkpoint?
     - Should we be able to --check with --skip-config-check?
-
-Note:
-    When sampling only, we don't want to have to instantiate an input loader.
-    However, we need the input loader
 """
 import argparse
 
@@ -52,7 +47,7 @@ assert isinstance(config_dict, dict), 'Configuration object supplied with --conf
 
 if args.action == 'train':
     rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict,
-                      skip_config_check=args.skip_config_check)
+                      skip_config_check=args.skip_config_check, train_mode=True)
 
     exit(rubato.train(epochs=10))
 
@@ -61,7 +56,7 @@ elif args.action == 'check':
 
 elif args.action == 'sample':
     rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict,
-                      skip_config_check=args.skip_config_check)
+                      skip_config_check=args.skip_config_check, train_mode=False)
     raise NotImplementedError('No support for sampling without training yet... #TODO')
 
 raise ValueError

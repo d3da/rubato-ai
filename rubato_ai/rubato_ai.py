@@ -34,7 +34,7 @@ class RubatoAI:
     """
 
     def __init__(self, model_name: str, restore_checkpoint: bool, config: ConfDict,
-                 skip_config_check: bool):
+                 skip_config_check: bool, train_mode: bool):
         if not skip_config_check:
             validate_config(type(self).__name__, config=config)
 
@@ -43,7 +43,10 @@ class RubatoAI:
             print('>>>>> Enabling mixed precision floats')
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-        self.input_loader = PerformanceInputLoader(config)
+        self.input_loader = None
+        if train_mode:
+            self.input_loader = PerformanceInputLoader(config)
+
         self.model = self._model_from_config(model_name,
                                              self.input_loader,
                                              restore_checkpoint,
@@ -57,7 +60,7 @@ class RubatoAI:
 
     @staticmethod
     def _model_from_config(model_name: str,
-                           input_loader: PerformanceInputLoader,
+                           input_loader: Optional[PerformanceInputLoader],
                            restore_checkpoint: bool,
                            config: ConfDict) -> BaseModel:
         if config['model_type'] == 'transformer':

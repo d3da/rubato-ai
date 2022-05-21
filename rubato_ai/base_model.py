@@ -42,7 +42,7 @@ class BaseModel(tf.keras.Model):
 
     def __init__(self,
                  model_name: str,
-                 input_loader: PerformanceInputLoader,
+                 input_loader: Optional[PerformanceInputLoader],
                  restore_checkpoint: bool,
                  config: ConfDict):
         super().__init__(name=model_name)
@@ -115,6 +115,7 @@ class BaseModel(tf.keras.Model):
             which ``fit()`` cannot handle normally.
             The drawback is that we don't get an epoch ETA timer.
         """
+        assert self.input_loader is not None
         for e in range(epochs):
             self.fit(self.input_loader.dataset, epochs=1,
                      callbacks=self.callbacks)

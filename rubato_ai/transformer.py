@@ -338,7 +338,7 @@ class TransformerModel(BaseModel):
 
     def __init__(self,
                  model_name: str,
-                 input_loader: PerformanceInputLoader,
+                 input_loader: Optional[PerformanceInputLoader],
                  restore_checkpoint: bool,
                  config: ConfDict):
         super().__init__(model_name, input_loader, restore_checkpoint, config)
@@ -385,8 +385,8 @@ class TransformerModel(BaseModel):
         return predicted_categories
 
     def sample_music(self, sample_length=512, temperature=1.0, verbose=False):
-        if self.input_loader.midi_processor.piece_start:
-            primer = self.input_loader.midi_processor.start_token
+        if self.midi_processor.piece_start:
+            primer = self.midi_processor.start_token
         else:
             primer = 0
         result = tf.constant([[primer]]*1, shape=(1, 1), dtype=tf.int32)

@@ -11,6 +11,7 @@ from .input_loader import PerformanceInputLoader
 from .base_model import BaseModel
 from .registry import register_param, register_links, document_registrations, ConfDict
 
+from typing import Optional
 
 @document_registrations
 @register_param('rnn_units', int, 'Hidden dimension of the RNN', breaks_compatibility=True)
@@ -40,7 +41,7 @@ class RnnModel(BaseModel):
     """
     def __init__(self,
                  model_name: str,
-                 input_loader: PerformanceInputLoader,
+                 input_loader: Optional[PerformanceInputLoader],
                  restore_checkpoint: bool,
                  config: ConfDict):
         super().__init__(model_name, input_loader, restore_checkpoint, config)
