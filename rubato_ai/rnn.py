@@ -40,11 +40,10 @@ class RnnModel(BaseModel):
         - it doesn't work with ``config['mixed_precision']``
     """
     def __init__(self,
-                 model_name: str,
                  train_mode: bool,
                  restore_checkpoint: bool,
                  config: ConfDict):
-        super().__init__(model_name, train_mode, restore_checkpoint, config)
+        super().__init__(train_mode, restore_checkpoint, config)
         self._rnn_units = config['rnn_units']
         self._drop_rate = config['drop_rate']
 

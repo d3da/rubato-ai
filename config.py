@@ -11,7 +11,6 @@ _path_config = {
 _data_config = {
     # Input loader
     'sequence_length': 2048,
-    'batch_size': 2,
     'augmentation': 'aug-',
     'min_stride': 1024,  # ?
     'max_stride': 2048,  # ?
@@ -35,11 +34,15 @@ _train_loop_config = {
     'kept_checkpoints': 5,
 }
 
-huang2018_relative_attn = {
+huang2018_relative_global_attention = {
     **_path_config,
     **_train_loop_config,
     **_data_config,
+
+    'model_name': 'Huang2018_RelativeGlobalAttention',
     'mixed_precision': True,  # Should we use this?
+    'batch_size': 2,
+
     'model_type': 'transformer',
     'num_layers': 8,
     'drop_rate': 0.2,
@@ -47,7 +50,7 @@ huang2018_relative_attn = {
     'embed_dim': 512,
     'attn_dim': 384,
     'attn_heads': 8,
-    'ff_dim': 1024,  # ?
+    'ff_dim': 1024,
     'attn_type': 'relative',
     'max_relative_pos': 1024,
     'learning_rate_schedule': 'noam',
@@ -55,11 +58,16 @@ huang2018_relative_attn = {
     'adam_beta1': 0.9,
     'adam_beta2': 0.98,
     'adam_eps': 1e-9,
-    'label_smoothing': 0.1,  # ?
+    'label_smoothing': 0.1,
 }
-"""Huang et al. 2018 Transformer with relative global attention"""
+"""
+Huang et al. 2018 Music Transformer with relative global attention.
 
-default_conf = huang2018_relative_attn
+Note:
+    Parameters are actually taken from the 2019 ICLR conference version of the paper.
+"""
+
+default_conf = huang2018_relative_global_attention
 """Config to use if not overridden via command-line argument"""
 
 # Model settings (RNN) TODO

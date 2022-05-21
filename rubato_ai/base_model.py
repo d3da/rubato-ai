@@ -15,6 +15,9 @@ from typing import Iterable, Optional
 
 
 @document_registrations
+@register_param('model_name', str,
+                'Name of the model instance. Checkpoints, logs and samples will be saved '
+                'under this name.')
 @register_param('train_dir', PathLike,
                 'Path for saving checkpoints, tensorboard logs and samples')
 @register_param('kept_checkpoints', int,
@@ -27,26 +30,17 @@ class BaseModel(tf.keras.Model):
     Base class inherited by TransformerModel and RnnModel.
     This class can be considered abstract and is not instantiated directly.
 
-    This class handles the following:
-        - Setup the optimizer + loss
-        - Run the train() loop
-        - Keep persistent batch / epoch counters
-        - Save checkpoints
-
     .. todo::
-        - Move checkpoint compatibility logic to a different (Mixin) class
-        - Instantiate the optimizer and loss in RubatoAI (like the input loader)
         - Abstract methods for sample_music etc.
         - **Don't conf-link to PerformanceInputLoader/Optimizer if not train_mode?????????????????**
     """
     _config_attr_prefix = '_config_attr_prefix'
 
     def __init__(self,
-                 model_name: str,
                  train_mode: bool,
                  restore_checkpoint: bool,
                  config: ConfDict):
-        super().__init__(name=model_name)
+        super().__init__(name=config['model_name'])
 
         self.train_dir = config['train_dir']
 
@@ -74,7 +68,7 @@ class BaseModel(tf.keras.Model):
             self.__setattr__(self._config_attr_prefix+k, tf.Variable(v, trainable=False))
 
         # Setup the checkpoint manager
-        checkpoint_dir = os.path.join(self.train_dir, 'checkpoints', model_name)
+        checkpoint_dir = os.path.join(self.train_dir, 'checkpoints', self.name)
         checkpoint = tf.train.Checkpoint(model=self, optimizer=self.optimizer)
         self.checkpoint_mgr = tf.train.CheckpointManager(
             checkpoint,

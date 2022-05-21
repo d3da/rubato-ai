@@ -8,8 +8,6 @@ from .config_check import validate_config
 
 import tensorflow as tf
 
-from typing import Optional
-
 @document_registrations
 @register_link_param('model_type', {
     'transformer': 'TransformerModel',
@@ -26,13 +24,11 @@ class RubatoAI:
     based on the supplied configuration dictionary.
 
     .. todo::
-        - Instantiate optimizer here (if training)
-        - Allow sampling only (without input loader / optimizer + loss):
-            - With or without avg_checkpoints
+        - Sample with or without avg_checkpoints
         - rename validate_config to check_config or sth
     """
 
-    def __init__(self, model_name: str, restore_checkpoint: bool, config: ConfDict,
+    def __init__(self, restore_checkpoint: bool, config: ConfDict,
                  skip_config_check: bool, train_mode: bool):
         if not skip_config_check:
             validate_config(type(self).__name__, config=config)
@@ -42,8 +38,7 @@ class RubatoAI:
             print('>>>>> Enabling mixed precision floats')
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-        self.model = self._model_from_config(model_name,
-                                             train_mode,
+        self.model = self._model_from_config(train_mode,
                                              restore_checkpoint,
                                              config)
 
@@ -54,14 +49,13 @@ class RubatoAI:
         self.model.summary()
 
     @staticmethod
-    def _model_from_config(model_name: str,
-                           train_mode: bool,
+    def _model_from_config(train_mode: bool,
                            restore_checkpoint: bool,
                            config: ConfDict) -> BaseModel:
         if config['model_type'] == 'transformer':
-            return TransformerModel(model_name, train_mode, restore_checkpoint, config)
+            return TransformerModel(train_mode, restore_checkpoint, config)
         if config['model_type'] == 'rnn':
-            return RnnModel(model_name, train_mode, restore_checkpoint, config)
+            return RnnModel(train_mode, restore_checkpoint, config)
         raise ValueError
 
     def train(self, epochs: int):

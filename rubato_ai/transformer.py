@@ -337,11 +337,10 @@ class TransformerModel(BaseModel):
     """
 
     def __init__(self,
-                 model_name: str,
                  train_mode: bool,
                  restore_checkpoint: bool,
                  config: ConfDict):
-        super().__init__(model_name, train_mode, restore_checkpoint, config)
+        super().__init__(train_mode, restore_checkpoint, config)
         self._sequence_length = config['sequence_length']
         self._embed_dim = config['embed_dim']
 

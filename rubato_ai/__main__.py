@@ -21,9 +21,6 @@ import config
 
 parser = argparse.ArgumentParser(description='Train or sample a RubatoAI model.')
 
-parser.add_argument('--model-name', required=True, type=str,
-                    help='Name of the model instance. Checkpoints, logs and samples will be saved under this name.')
-
 parser.add_argument('--config', default='default_conf', nargs='?',
                     help='Configuration from config.py to use as model configuration. Defaults to \'default_conf\'.')
 
@@ -46,7 +43,7 @@ config_dict = getattr(config, args.config)  # raises AttributeError on failure
 assert isinstance(config_dict, dict), 'Configuration object supplied with --config must be a dict'
 
 if args.action == 'train':
-    rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict,
+    rubato = RubatoAI(args.restore_checkpoint, config=config_dict,
                       skip_config_check=args.skip_config_check, train_mode=True)
 
     exit(rubato.train(epochs=10))
@@ -55,7 +52,7 @@ elif args.action == 'check':
     exit(validate_config('RubatoAI', config=config_dict))
 
 elif args.action == 'sample':
-    rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict,
+    rubato = RubatoAI(args.restore_checkpoint, config=config_dict,
                       skip_config_check=args.skip_config_check, train_mode=False)
     raise NotImplementedError('No support for sampling without training yet... #TODO')
 
