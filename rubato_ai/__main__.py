@@ -9,6 +9,13 @@ Command-line interface to RubatoAI.
     - move model-name to config.py
     - Flag to skip config check
     - Flag to skip checkpoint compatibility check
+    - Help strings for each argument
+    - Should we be able to --sample with --no-restore-checkpoint?
+    - Should we be able to --check with --skip-config-check?
+
+Note:
+    When sampling only, we don't want to have to instantiate an input loader.
+    However, we need the input loader
 """
 import argparse
 
@@ -28,6 +35,9 @@ parser.add_argument('--config', default='default_conf', nargs='?',
 parser.add_argument('--no-restore-checkpoint', action='store_false', dest='restore_checkpoint',
                     help='Do not load the checkpoint from disk. Checkpoints will still be saved.')
 
+parser.add_argument('--skip-config-check', action='store_true', dest='skip_config_check',
+                    help=None)
+
 parser.add_argument('action', choices=['train', 'check', 'sample'], default='train', nargs='?',
                     help=None)
 
@@ -41,13 +51,17 @@ config_dict = getattr(config, args.config)  # raises AttributeError on failure
 assert isinstance(config_dict, dict), 'Configuration object supplied with --config must be a dict'
 
 if args.action == 'train':
-    rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict)
+    rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict,
+                      skip_config_check=args.skip_config_check)
+
     exit(rubato.train(epochs=10))
 
 elif args.action == 'check':
     exit(validate_config('RubatoAI', config=config_dict))
 
 elif args.action == 'sample':
+    rubato = RubatoAI(args.model_name, args.restore_checkpoint, config=config_dict,
+                      skip_config_check=args.skip_config_check)
     raise NotImplementedError('No support for sampling without training yet... #TODO')
 
 raise ValueError

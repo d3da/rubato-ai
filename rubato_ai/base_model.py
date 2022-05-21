@@ -11,7 +11,7 @@ from .registry import register_param, register_links, document_registrations, \
         PathLike, ConfDict, CONFIG_REGISTRY
 from .exceptions import CheckpointIncompatibleError
 
-from typing import Iterable
+from typing import Iterable, Optional
 
 
 @document_registrations

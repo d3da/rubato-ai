@@ -8,6 +8,8 @@ from .config_check import validate_config
 
 import tensorflow as tf
 
+from typing import Optional
+
 @document_registrations
 @register_link_param('model_type', {
     'transformer': 'TransformerModel',
@@ -28,10 +30,13 @@ class RubatoAI:
         - Instantiate optimizer here (if training)
         - Allow sampling only (without input loader / optimizer + loss):
             - With or without avg_checkpoints
+        - rename validate_config to check_config or sth
     """
 
-    def __init__(self, model_name: str, restore_checkpoint: bool, config: ConfDict):
-        validate_config(type(self).__name__, config=config)
+    def __init__(self, model_name: str, restore_checkpoint: bool, config: ConfDict,
+                 skip_config_check: bool):
+        if not skip_config_check:
+            validate_config(type(self).__name__, config=config)
 
         self.mixed_precision = config['mixed_precision']
         if self.mixed_precision:
