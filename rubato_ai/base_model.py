@@ -21,7 +21,7 @@ from typing import Iterable, Optional
                 'Number of checkpoints to save in checkpoint directory')
 @register_param('label_smoothing', float,
                 'Amount of label smoothing regularization to apply to training examples')
-@register_links({'Optimizer', 'TrainCallback', 'MidiProcessor'})
+@register_links({'PerformanceInputLoader', 'Optimizer', 'TrainCallback', 'MidiProcessor'})
 class BaseModel(tf.keras.Model):
     """
     Base class inherited by TransformerModel and RnnModel.
@@ -37,16 +37,17 @@ class BaseModel(tf.keras.Model):
         - Move checkpoint compatibility logic to a different (Mixin) class
         - Instantiate the optimizer and loss in RubatoAI (like the input loader)
         - Abstract methods for sample_music etc.
+        - **Don't conf-link to PerformanceInputLoader/Optimizer if not train_mode?????????????????**
     """
     _config_attr_prefix = '_config_attr_prefix'
 
     def __init__(self,
                  model_name: str,
-                 input_loader: Optional[PerformanceInputLoader],
+                 train_mode: bool,
                  restore_checkpoint: bool,
                  config: ConfDict):
         super().__init__(name=model_name)
-        self.input_loader = input_loader
+
         self.train_dir = config['train_dir']
 
         self.midi_processor = MidiProcessor(config)
@@ -55,12 +56,17 @@ class BaseModel(tf.keras.Model):
         self._batch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
         self._epoch_ctr = tf.Variable(0, trainable=False, dtype=tf.int64)
 
-        self.optimizer = Optimizer.create(step_counter=self._batch_ctr, config=config)
-
-        self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
-                                                      label_smoothing=config['label_smoothing'])
-        self.compile(optimizer=self.optimizer, loss=self.loss,
-                     metrics=['accuracy'])
+        self.train_mode = train_mode
+        self.input_loader = None
+        self.optimizer = None
+        self.loss = None
+        if self.train_mode:
+            self.input_loader = PerformanceInputLoader(config)
+            self.optimizer = Optimizer.create(step_counter=self._batch_ctr, config=config)
+            self.loss = tf.losses.CategoricalCrossentropy(from_logits=True,
+                                                          label_smoothing=config['label_smoothing'])
+            self.compile(optimizer=self.optimizer, loss=self.loss,
+                         metrics=['accuracy'])
 
         # Save all config items as class attributes, so they are saved to any checkpoints as well
         # Only objects trackable by tensorflow are saved to the checkpoint
@@ -89,7 +95,9 @@ class BaseModel(tf.keras.Model):
                 # TODO check whether a checkpoint exists for model_name?
                 print('Initialized model (we\'re at batch zero)\n')
 
-        self.callbacks = [TrainCallback(config)]
+        self.callbacks = None
+        if self.train_mode:
+            self.callbacks = [TrainCallback(config)]
         self.load_time = time.localtime()
 
     @property
@@ -101,9 +109,11 @@ class BaseModel(tf.keras.Model):
         return self._epoch_ctr.value().numpy()
 
     def increment_batch(self):
+        assert self.train_mode
         return self._batch_ctr.assign_add(1).value().numpy()
 
     def increment_epoch(self):
+        assert self.train_mode
         return self._epoch_ctr.assign_add(1).value().numpy()
 
     def train(self, epochs: int) -> None:
@@ -115,7 +125,9 @@ class BaseModel(tf.keras.Model):
             which ``fit()`` cannot handle normally.
             The drawback is that we don't get an epoch ETA timer.
         """
-        assert self.input_loader is not None
+        assert self.train_mode
+        assert self.input_loader is not None and self.optimizer is not None and \
+                self.loss is not None and self.callbacks is not None
         for e in range(epochs):
             self.fit(self.input_loader.dataset, epochs=1,
                      callbacks=self.callbacks)

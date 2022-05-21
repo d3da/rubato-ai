@@ -20,7 +20,6 @@ from typing import Optional
 @register_param('mixed_precision', bool,
                 'Enable mixed_float16 precision in session',
                 breaks_compatibility=True)
-@register_links({'PerformanceInputLoader'})
 class RubatoAI:
     """
     'Start' class used to instantiate the input loader and a selected subclass of BaseModel,
@@ -43,12 +42,8 @@ class RubatoAI:
             print('>>>>> Enabling mixed precision floats')
             tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
-        self.input_loader = None
-        if train_mode:
-            self.input_loader = PerformanceInputLoader(config)
-
         self.model = self._model_from_config(model_name,
-                                             self.input_loader,
+                                             train_mode,
                                              restore_checkpoint,
                                              config)
 
@@ -60,13 +55,13 @@ class RubatoAI:
 
     @staticmethod
     def _model_from_config(model_name: str,
-                           input_loader: Optional[PerformanceInputLoader],
+                           train_mode: bool,
                            restore_checkpoint: bool,
                            config: ConfDict) -> BaseModel:
         if config['model_type'] == 'transformer':
-            return TransformerModel(model_name, input_loader, restore_checkpoint, config)
+            return TransformerModel(model_name, train_mode, restore_checkpoint, config)
         if config['model_type'] == 'rnn':
-            return RnnModel(model_name, input_loader, restore_checkpoint, config)
+            return RnnModel(model_name, train_mode, restore_checkpoint, config)
         raise ValueError
 
     def train(self, epochs: int):
