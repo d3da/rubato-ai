@@ -3,10 +3,9 @@ Command-line interface to RubatoAI.
 
 .. todo::
     - number of epochs to train for
-    - Sampling (maybe using avg_checkpoints)
+    - Sampling using avg_checkpoints
     - Define action using sub_commands
           `<https://docs.python.org/dev/library/argparse.html#sub-commands>`_
-    - move model-name to config.py
     - Flag to skip checkpoint compatibility check
     - Help strings for each argument
     - Should we be able to --sample with --no-restore-checkpoint?
@@ -54,6 +53,6 @@ elif args.action == 'check':
 elif args.action == 'sample':
     rubato = RubatoAI(args.restore_checkpoint, config=config_dict,
                       skip_config_check=args.skip_config_check, train_mode=False)
-    raise NotImplementedError('No support for sampling without training yet... #TODO')
+    exit(rubato.sample(config=config_dict))
 
 raise ValueError

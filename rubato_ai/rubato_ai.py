@@ -1,3 +1,5 @@
+import os
+
 from .base_model import BaseModel
 from .transformer import TransformerModel
 from .rnn import RnnModel
@@ -61,10 +63,15 @@ class RubatoAI:
     def train(self, epochs: int):
         self.model.train(epochs)
 
-    # TODO sample without training
-    def sample(self, sample_length: int, temperature: float, num_samples: int):
+    def sample(self, config: ConfDict, sample_length: int = 2048, temperature: float = 0.9,
+               num_samples: int = 2):
+
         music = self.model.sample_music(sample_length=sample_length, temperature=temperature,
-                                         num_samples=num_samples, verbose=True)
-        # TODO see traincallback, move that sample_saving code to basemodel?
-        raise NotImplementedError
-        self.model.save_samples(music, '???')
+                                        num_samples=num_samples, verbose=True)
+        sample_dir = 'samples'
+        sample_subdir = os.path.join(sample_dir, self.model.name)
+        if not os.path.exists(sample_dir):
+            os.mkdir(sample_dir)
+        if not os.path.exists(sample_subdir):
+            os.mkdir(sample_subdir)
+        self.model.save_samples(music, sample_subdir)

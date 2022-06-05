@@ -54,6 +54,7 @@ class BaseModel(tf.keras.Model):
         self.input_loader = None
         self.optimizer = None
         self.loss = None
+
         if self.train_mode:
             self.input_loader = PerformanceInputLoader(config)
             self.optimizer = Optimizer.create(step_counter=self._batch_ctr, config=config)
@@ -61,6 +62,8 @@ class BaseModel(tf.keras.Model):
                                                           label_smoothing=config['label_smoothing'])
             self.compile(optimizer=self.optimizer, loss=self.loss,
                          metrics=['accuracy'])
+        else:
+            self.compile()
 
         # Save all config items as class attributes, so they are saved to any checkpoints as well
         # Only objects trackable by tensorflow are saved to the checkpoint

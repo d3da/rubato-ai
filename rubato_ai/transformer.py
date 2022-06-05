@@ -383,7 +383,7 @@ class TransformerModel(BaseModel):
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories
 
-    def sample_music(self, sample_length=512, temperature=1.0, verbose=False):
+    def sample_music(self, sample_length=512, temperature=1.0, verbose=False, **_):
         if self.midi_processor.piece_start:
             primer = self.midi_processor.start_token
         else:
