@@ -5,16 +5,11 @@
 .. todo::
     Add interface to this class to __main__
 """
-import os
-
 import tensorflow as tf
 
 from .base_model import BaseModel
-from .midi_processor import MidiProcessor
-from .rubato_ai import RubatoAI
 
-
-def load_averaged_weights(model: BaseModel, last_n=20) -> None:
+def load_averaged_weights(model: BaseModel, last_n: int = 20) -> None:
     """
     Loads the last n checkpoint files and load their averaged weights.
 
@@ -26,6 +21,10 @@ def load_averaged_weights(model: BaseModel, last_n=20) -> None:
     checkpoints = checkpoints[-last_n:]
 
     sum_weights = [tf.zeros_like(w) for w in model.trainable_variables]
+
+    if last_n > len(checkpoints):
+        print(f'Warning: Could not average weights from {last_n} checkpoints, '
+              f'as only {len(checkpoints)} checkpoints were found.')
 
     for c in checkpoints:
         try:
@@ -43,26 +42,9 @@ def load_averaged_weights(model: BaseModel, last_n=20) -> None:
     for i, w in enumerate(list(model.trainable_variables)):
         w.assign(sum_weights[i] / len(checkpoints))
 
-    print(f'\nAveraged {len(list(model.trainable_variables))} weights from {len(checkpoints)} models')
+    print(f'\nAveraged {len(list(model.trainable_variables))} weights from {len(checkpoints)} checkpoints')
 
     # TODO Make sure we don't accidentally save the averaged model
     del model.checkpoint_mgr
     # model.checkpoint_mgr = None
 
-
-def average_checkpoints(trainer: RubatoAI):
-    load_averaged_weights(trainer.model)
-    midi_processor = MidiProcessor(**default_conf)
-    music = trainer.model.sample_music(sample_length=1024, temperature=0.8, verbose=True)
-
-    midi_dir = os.path.join(PROJECT_DIR, 'samples')
-    if not os.path.exists(midi_dir):
-        os.mkdir(midi_dir)
-
-    for i, seq in enumerate(music):
-        events = midi_processor.indices_to_events(seq)
-        midi = midi_processor.events_to_midi(events)
-        midi_path = os.path.join(midi_dir, f'{trainer.model.name}_avg_{i}.midi')
-        midi.save(midi_path)
-
-    exit()  # Exit so we don't accidently continue training and overwrite a checkpoint
