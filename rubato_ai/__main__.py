@@ -4,8 +4,6 @@ Command-line interface to RubatoAI.
 .. todo::
     - number of epochs to train for
     - Sampling using avg_checkpoints
-    - Define action using sub_commands
-          `<https://docs.python.org/dev/library/argparse.html#sub-commands>`_
     - Flag to skip checkpoint compatibility check
     - Help strings for each argument
     - Should we be able to --sample with --no-restore-checkpoint?
@@ -20,6 +18,7 @@ import config
 
 parser = argparse.ArgumentParser(description='Train or sample a RubatoAI model.')
 
+# Global flags
 parser.add_argument('--config', default='default_conf', nargs='?',
                     help='Configuration from config.py to use as model configuration. Defaults to \'default_conf\'.')
 
@@ -27,16 +26,24 @@ parser.add_argument('--no-restore-checkpoint', action='store_false', dest='resto
                     help='Do not load the checkpoint from disk. Checkpoints will still be saved.')
 
 parser.add_argument('--skip-config-check', action='store_true', dest='skip_config_check',
-                    help=None)
+                    help='Do not validate the configuration dictionary before loading the model.')
 
-parser.add_argument('action', choices=['train', 'check', 'sample'], default='train', nargs='?',
-                    help=None)
+# Subcommands
+action_parser = parser.add_subparsers(help=None)
+parser.set_defaults(action='train')
 
-# parser.print_help()
+train_parser = action_parser.add_parser('train', help='Train a model (default)')
+train_parser.set_defaults(action='train')
+
+sample_parser = action_parser.add_parser('sample', help='Sample MIDI files from a model')
+sample_parser.set_defaults(action='sample')
+
+check_parser = action_parser.add_parser('check', help='Validate the configuration then exit')
+check_parser.set_defaults(action='check')
+
 args = parser.parse_args()
-# print()
-print(args)
-
+# parser.print_help()
+# print(args)
 
 config_dict = getattr(config, args.config)  # raises AttributeError on failure
 assert isinstance(config_dict, dict), 'Configuration object supplied with --config must be a dict'
