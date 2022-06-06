@@ -125,6 +125,7 @@ class BaseModel(tf.keras.Model):
         assert self.train_mode
         assert self.input_loader is not None and self.optimizer is not None and \
                 self.loss is not None and self.callbacks is not None
+        print(f'Training for {epochs} epoch{"s" if epochs != 1 else ""}.')
         for e in range(epochs):
             self.fit(self.input_loader.dataset, epochs=1,
                      callbacks=self.callbacks)

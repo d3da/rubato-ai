@@ -2,7 +2,6 @@
 Command-line interface to RubatoAI.
 
 .. todo::
-    - number of epochs to train for
     - Flag to skip checkpoint compatibility check
     - Help strings for each argument
     - Should we be able to --sample with --no-restore-checkpoint?
@@ -36,6 +35,8 @@ parser.set_defaults(action='train')
 # Training mode
 train_parser = action_parser.add_parser('train', help='Train a model (default)')
 train_parser.set_defaults(action='train')
+train_parser.add_argument('--epochs', '-e', type=int, default=10,
+                          help='Number of epochs to train for before exiting.')
 
 # Sampling mode
 sample_parser = action_parser.add_parser('sample', help='Sample MIDI files from a model')
@@ -58,7 +59,7 @@ if args.action == 'train':
     rubato = RubatoAI(args.restore_checkpoint, config=config_dict,
                       skip_config_check=args.skip_config_check, train_mode=True)
 
-    exit(rubato.train(epochs=10))
+    exit(rubato.train(epochs=args.epochs))
 
 elif args.action == 'check':
     exit(validate_config('RubatoAI', config=config_dict))
