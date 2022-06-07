@@ -18,6 +18,9 @@ import mido
 @register_param('piece_end', bool,
                 'Whether to append <END> events to sequences',
                 breaks_compatibility=True)
+@register_param('max_silence', float,
+                'Truncate long silences after a given number of seconds. Set to <=0.0 to disable.',
+                breaks_compatibility=False)
 class MidiProcessor:
     """Class for generating tokens from a midi file and turning tokens back into a midi file.
 
@@ -28,6 +31,11 @@ class MidiProcessor:
     Additionally, optional <START> and <END> tokens are pre- and appended to processed midi sequences
     to supply the model with information on when a piece starts; these tokens are added
     only at the beginning and end of a piece, not at sliding windows in the middle of the piece.
+
+    The midi processor does not distinguish between MIDI tracks and considers note_on events with
+    velocity 0 to count as note_off events.
+
+    The parameter max_silence allows reducing the duration of silences (no notes are played).
 
     .. todo::
         maybe remove <time_shift: 0> and <velocity: 0> events?
@@ -64,6 +72,7 @@ class MidiProcessor:
         self.time_granularity = config['time_granularity']
         self.piece_start = config['piece_start']
         self.piece_end = config['piece_end']
+        self.max_silence = config['max_silence']
         self._pitch_augmentation = None
         self._time_augmentation = None
 
@@ -88,6 +97,7 @@ class MidiProcessor:
         self._last_velocity = -1
         self._sustain_pressed = False
         self._sustained_notes = set()
+        self._notes_on = set()
 
     def parse_midi(self,
                    midi: mido.MidiFile,
@@ -143,22 +153,35 @@ class MidiProcessor:
         if velo != self._last_velocity:
             self._add_event('VELOCITY', velo)
         self._add_event('NOTE_ON', pitch)
+        self._notes_on.add(pitch)
 
     def _handle_note_off(self, msg):
         pitch = self._augment_pitch(msg.note)
+        if pitch not in self._notes_on:
+            # print(f'Skipping NOTE_OFF for {pitch} since there was no NOTE_ON')
+            return
         if self._sustain_pressed:
             self._sustained_notes.add(pitch)
         else:
             self._handle_time_shift()
             self._add_event('NOTE_OFF', pitch)
+            self._notes_on.remove(pitch)
 
     def _handle_sustain_release(self):
         self._handle_time_shift()
         for pitch in self._sustained_notes:
             self._add_event('NOTE_OFF', pitch)
+            self._notes_on.remove(pitch)
         self._sustained_notes.clear()
 
     def _handle_time_shift(self):
+        # Truncate long silences
+        if self.max_silence > 0.0 and \
+                len(self._notes_on) == 0 and \
+                self._seconds_elapsed > self.max_silence:
+            # print(f'Long silence of {self._seconds_elapsed} found, truncating to {self.max_silence}s')
+            self._seconds_elapsed = self.max_silence
+
         # TODO augment time in here, instead of in _handle_message() ?
         steps = round(self._seconds_elapsed * self.time_granularity)
         self._seconds_elapsed = 0.0  # TODO handle rounding error?
@@ -336,7 +359,8 @@ def test_conversions(path: str, midi_processor: MidiProcessor):
 
 def main():
     path = '../datasets/maestro/maestro-v3.0.0/2008/MIDI-Unprocessed_01_R1_2008_01-04_ORIG_MID--AUDIO_01_R1_2008_wav--1.midi'
-    midi_processor = MidiProcessor(time_granularity=100, piece_start=True, piece_end=True)
+    config = {'time_granularity': 100, 'piece_start': True, 'piece_end': True, 'max_silence': 6.9}
+    midi_processor = MidiProcessor(config)
     test_conversions(path, midi_processor)
 
 

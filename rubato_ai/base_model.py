@@ -11,7 +11,7 @@ from .registry import register_param, register_links, document_registrations, \
         PathLike, ConfDict, CONFIG_REGISTRY
 from .exceptions import CheckpointIncompatibleError
 
-from typing import Iterable, Optional
+from typing import Iterable
 
 
 @document_registrations
@@ -33,6 +33,7 @@ class BaseModel(tf.keras.Model):
     .. todo::
         - Abstract methods for sample_music etc.
         - **Don't conf-link to PerformanceInputLoader/Optimizer if not train_mode?????????????????**
+        - Cannot load checkpoint with None values in config
     """
     _config_attr_prefix = '_config_attr_prefix'
 

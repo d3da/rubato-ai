@@ -18,6 +18,7 @@ _data_config = {
     'time_granularity': 100,
     'piece_start': True,  # ?
     'piece_end': True,  # ?
+    'max_silence': 8.0, # not in paper
     # dataset generator
     'shuffle_buffer_size': 8096,
     'queue_size': 16,  # No impact on model performance

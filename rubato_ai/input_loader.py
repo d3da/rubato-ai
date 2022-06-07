@@ -96,8 +96,8 @@ def seq_to_windows_iterator(seq: np.array, window_size: int, min_stride: int, ma
 @register_links({'MidiProcessor'})
 class PerformanceInputLoader:
     def __init__(self, config: ConfDict):
-        dataset_dir = config.get('dataset_dir')
-        dataset_csv = os.path.join(dataset_dir, config.get('dataset_csv'))
+        dataset_dir = config['dataset_dir']
+        dataset_csv = os.path.join(dataset_dir, config['dataset_csv'])
         check_dataset(dataset_dir, dataset_csv)
 
         train, test, validation = get_midi_filenames(dataset_csv)
@@ -123,7 +123,8 @@ class PerformanceInputLoader:
                     config['num_threads'],
                     config['time_granularity'],
                     config['piece_start'],
-                    config['piece_end']
+                    config['piece_end'],
+                    config['max_silence']
                 ),
                 output_signature=(
                     tf.TensorSpec(shape=window_size, dtype=tf.int32)
@@ -148,7 +149,8 @@ class PerformanceInputLoader:
                         config['num_threads'],
                         config['time_granularity'],
                         config['piece_start'],
-                        config['piece_end']
+                        config['piece_end'],
+                        config['max_silence'],
                     ),
                     output_signature=(
                         tf.TensorSpec(shape=window_size, dtype=tf.int32)
@@ -164,7 +166,8 @@ class PerformanceInputLoader:
                      buffer,
                      time_granularity,
                      piece_start,
-                     piece_end):
+                     piece_end,
+                     max_silence):
             super().__init__()
             self.path_list = path_list
             self.base_data_path = base_data_path
@@ -176,7 +179,8 @@ class PerformanceInputLoader:
             self.midi_processor = MidiProcessor({
                     'time_granularity':time_granularity,
                     'piece_start':piece_start,
-                    'piece_end':piece_end})
+                    'piece_end':piece_end,
+                    'max_silence':max_silence})
 
         def run(self):
             for path in self.path_list:
@@ -197,7 +201,8 @@ class PerformanceInputLoader:
                                   num_threads,
                                   time_granularity,
                                   piece_start,
-                                  piece_end):
+                                  piece_end,
+                                  max_silence):
         for seq in PerformanceInputLoader.threaded_sequence_generator(path_list,
                                                                       base_data_path,
                                                                       augmentation,
@@ -205,7 +210,8 @@ class PerformanceInputLoader:
                                                                       num_threads,
                                                                       time_granularity,
                                                                       piece_start,
-                                                                      piece_end):
+                                                                      piece_end,
+                                                                      max_silence):
             for win in seq_to_windows_iterator(seq, window_size, min_stride, max_stride):
                 yield win
 
@@ -218,7 +224,8 @@ class PerformanceInputLoader:
             num_threads,
             time_granularity,
             piece_start,
-            piece_end):
+            piece_end,
+            max_silence):
         random.shuffle(path_list)
 
         buffer = multiprocessing.Queue(queue_size)
@@ -229,7 +236,7 @@ class PerformanceInputLoader:
         for i in range(num_threads):
             paths = paths_subset[i]
             slave = PerformanceInputLoader.SequenceProducerThread(
-                paths, base_data_path, augmentation, buffer, time_granularity, piece_start, piece_end
+                paths, base_data_path, augmentation, buffer, time_granularity, piece_start, piece_end, max_silence
             )
             slave.start()
             slaves.append(slave)
@@ -276,6 +283,25 @@ def check_dataset(base_path: str, csv_path: str):
 if __name__ == '__main__':
     base_path = 'data/maestro-v3.0.0'
     csv_path = os.path.join(base_path, 'maestro-v3.0.0.csv')
+
+    midi_conf = {'time_granularity': 100, 'piece_start': True, 'piece_end': True, 'max_silence': 6.9}
+    config = {
+            **midi_conf,
+            'dataset_dir': 'data/maestro-v3.0.0',
+            'dataset_csv': 'maestro-v3.0.0.csv',
+            'sequence_length': 512,
+            'augmentation': 'aug-',
+            'min_stride': 256,
+            'max_stride': 512,
+            'queue_size': 128,
+            'shuffle_buffer_size': 128,
+            'batch_size': 2,
+            'num_threads': 1,
+    }
+    input_loader = PerformanceInputLoader(config)
+
+    for i, x in enumerate(input_loader.dataset):
+        print(i, end='       \r')
 
     exit()
 

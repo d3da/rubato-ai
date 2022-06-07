@@ -9,6 +9,7 @@ Command-line interface to RubatoAI.
     - Put subcommand help messages in main help
     - Sampling length / temperature (here or in config), different when training???
     - Put length + averages + temperature in sample filenames
+    - Get help about a config parameter
 """
 import argparse
 
