@@ -85,7 +85,7 @@ class RnnModel(BaseModel):
     def generate_step(self, inputs, states, temperature):
         predicted_logits, states = self(inputs=inputs, states=states, return_states=True)
         predicted_logits = predicted_logits[:, -1, :]
-        predicted_logits *= temperature
+        predicted_logits /= temperature
         predicted_categories = tf.random.categorical(predicted_logits, num_samples=1, dtype=tf.int32)
         return predicted_categories, states
 

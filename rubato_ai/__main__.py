@@ -7,6 +7,8 @@ Command-line interface to RubatoAI.
     - Should we be able to --sample with --no-restore-checkpoint?
     - Should we be able to --check with --skip-config-check?
     - Put subcommand help messages in main help
+    - Sampling length / temperature (here or in config), different when training???
+    - Put length + averages + temperature in sample filenames
 """
 import argparse
 

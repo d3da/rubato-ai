@@ -26,7 +26,6 @@ class RubatoAI:
     based on the supplied configuration dictionary.
 
     .. todo::
-        - Sample with or without avg_checkpoints
         - rename validate_config to check_config or sth
     """
 
